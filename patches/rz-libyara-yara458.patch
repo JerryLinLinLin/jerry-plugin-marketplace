@@ -1,0 +1,11 @@
+diff --git a/subprojects/yara.wrap b/subprojects/yara.wrap
+index bab1023..9a109dc 100644
+--- a/subprojects/yara.wrap
++++ b/subprojects/yara.wrap
+@@ -1,5 +1,5 @@
+ [wrap-git]
+ url = https://github.com/VirusTotal/yara
+-revision = a7f351aab0fbad6713e9091b8e012cc7e870ec76
++revision = 84b0e3cc0e42f8f8e6b84d19c97ec3ac6ff8aee8
+ patch_directory = yara
+ depth = 1

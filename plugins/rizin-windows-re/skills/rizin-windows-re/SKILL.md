@@ -1,14 +1,10 @@
 ---
 name: rizin-windows-re
 description: >-
-  Cheatsheet for static reverse engineering, binary inspection, and memory-dump analysis with the
-  rizin bundle (rz-retdec `pdz`, rz-ghidra `pdg`, jsdec `pdd`, rz-libyara, FLIRT). Use for any format
-  Rizin parses: PE (.exe/.dll/.sys), Windows MDMP/DMP, ELF/core, Mach-O, firmware, shellcode, or raw
-  memory. Covers decompilation, imports/exports/strings/symbols, xrefs, unnamed functions, crash
-  state, and unknown/suspicious-file triage. Trigger on "analyze this binary/dump", "what does this
-  exe/dll do", "decompile this function", "is this malware", or any rizin/radare2 mention. Assumes
-  Rizin and its plugins are on PATH. Not for live debugging or .NET/managed-only decompilation; the
-  `dmp` backend is read-only postmortem analysis.
+  Inspect, disassemble, and decompile native binaries or memory dumps with a portable Windows
+  x64 Rizin toolkit (RetDec, Ghidra, jsdec, YARA, FLIRT). Use for PE/ELF/Mach-O files, Windows
+  minidumps and crash dumps, ELF cores, raw memory, firmware, or shellcode. Includes downloading
+  the CLI from GitHub Releases. Not for live debugging or managed-only .NET decompilation.
 ---
 
 # Rizin RE Cheatsheet
@@ -16,18 +12,46 @@ description: >-
 A fast command reference for inspecting binaries and memory dumps with the prebuilt Windows bundle;
 the target formats can come from any platform.
 
-These commands target the bundle's Rizin 0.8.2; use `<command>?` as ground truth.
+These commands target the bundle's Rizin 0.9.1; use `<command>?` as ground truth.
 
 ## Install the dependency
 
-Download the latest portable Windows x64 bundle from
-`https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/latest`, extract it, and add its
-`rizin\bin` directory to the current process `PATH`. Verify with `rizin -v`.
+Use an existing verified bundle when available. Otherwise run the bundled
+[installer](scripts/install.ps1) with PowerShell on Windows:
 
-> **Decompiling? Default to `pdz` (rz-retdec) — not `pdg`/Ghidra.** Ghidra is the famous name, so
-> it's tempting to reach for `pdg` by reflex; in this bundle `pdz` usually gives cleaner, more
-> directly usable C on Windows binaries. Treat `pdg` as a deliberate second choice — see the
-> **Decompiling** section below.
+```powershell
+& '<this-skill-directory>\scripts\install.ps1'
+```
+
+The installer finds the newest stable Rizin bundle among the repository's
+[GitHub releases](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases), verifies
+`SHA256SUMS` and the GitHub asset digest when available, then extracts into
+`%LOCALAPPDATA%\Programs\Rizin\<release-tag>\rizin`. It returns the executable path and
+adds `bin` to the current PowerShell process's `PATH`. Shell tool processes may not share
+environment changes: retain the returned absolute executable path for subsequent calls.
+Use `-Destination <directory>` for a workspace-local install, `-Tag rizin-v0.3.0` for the
+tested release, or `-AddToUserPath` when the user wants a persistent user PATH entry.
+No administrator privileges or separate VC++ runtime installation are required.
+Use Windows 10 version 1903 or later (including Windows 11), x64. The CLI's
+UTF-8 application manifest enables Unicode installation and input paths.
+
+For manual installation, download `rizin-windows-x64-bundle-v*.zip` and `SHA256SUMS` from
+the same release, verify the archive hash, and extract the complete `rizin` folder. Run
+`rizin -v` and check `pdg?`, `pdd?`, `pdz?`, and `yara?` before relying on the plugins.
+If the repository is renamed, `-Repository owner/new-name` overrides the download source.
+On a non-Windows host, use a compatible native Rizin installation; this release cannot run there.
+
+For PE decompilation, start with `pdz` (RetDec), then compare `pdg` or `pdd` where useful.
+For dump containers, first establish mapped code and function boundaries as described below.
+
+## Memory-dump analysis
+
+Read [references/memory-dumps.md](references/memory-dumps.md) when the input is a Windows
+minidump/crash dump, ELF core, or raw memory image. Start with `iI`, `iH`, `omlj`, and `il`;
+identify captured virtual addresses before disassembling. Avoid `-A` over a large dump.
+Analyze a bounded function with `af @ <VA>`, inspect `pdf @ <VA>`, and then try a decompiler.
+Keep file offsets, captured virtual addresses, and module RVAs distinct. Missing pages,
+symbols, registers, or imports limit what can be recovered; name those limits in the result.
 
 ## How to drive rizin non-interactively
 
@@ -69,18 +93,15 @@ rizin -p sample.rzdb -q -N -e scr.color=0 -c "afl" -c "pdz @ main"   # reload, n
 ## Decompiling
 
 Decompiling is the headline feature of this bundle, so choose the engine deliberately.
-**Default to `pdz` (rz-retdec) — reach for it first.** Ghidra (`pdg`) is the better-known
-decompiler in general, so it's tempting to reach for it by reflex — resist that here: on
-Windows PEs `pdz` tends to emit clean C with `windows.h` types and to name imported APIs and
-FLIRT functions, whereas `pdg` often leaves IAT or dynamically-resolved calls as raw pointers
-like `(*(code *)0x22a76)(...)`. Use `pdg` as a deliberate second choice (it usually has the
-best structural/control-flow recovery), and `pdd` for a fast look. When one is unclear, run
-another.
+Start with `pdz` (RetDec) for Windows PE files, then compare `pdg` for another
+control-flow/type recovery and `pdd` for a lightweight view. The bundle includes
+Ghidra's current PE import-slot fix. All engines can misidentify types or indirect
+calls, so compare output against disassembly and Rizin's imports/xrefs.
 
 | Command | Engine | When to use |
 | --- | --- | --- |
-| `pdz` | rz-retdec | **Default — reach for it first.** Clean C with `windows.h` types; names imported APIs and FLIRT labels well. |
-| `pdg` | rz-ghidra | Deliberate second choice — usually the best structural/control-flow recovery; recovers Windows struct types (e.g. `LPSTARTUPINFOW`, `DWORD`). |
+| `pdz` | rz-retdec | Default for PE files; C output using recovered types, APIs, and library names. |
+| `pdg` | rz-ghidra | Alternative control-flow/type recovery; useful directly on captured dump code. |
 | `pdd` | jsdec | A fast, lightweight pass / quick look. Output is lower-level (register-style) and often names imported calls. |
 
 Add `o` for side-by-side offsets (`pdzo`, `pdgo`, `pddo`) and `j` for JSON (`pdzj`, …).
@@ -90,14 +111,13 @@ Decompile a specific function with `@`: `pdz @ fcn.140001a10`.
 `af` at the address) — otherwise you get a *"No function at this offset"* error. `pdg` can be
 slow on very large functions and `pdz` is expensive on large binaries, so decompile specific
 functions with `@ <addr>` rather than the whole program. In dumps, locate mapped code and a reliable
-function boundary first; still try `pdz` first, but use the matching PE/ELF module if RetDec rejects
-the dump container or pages are missing.
+function boundary first. Use `pdg`/`pdd` on captured code or the matching PE/ELF
+module with RetDec if it rejects the dump container.
 
 **The limitation to plan around:** decompiler output is only as good as the analysis under it.
 Names appear as `fcn.xxxx` / `sub_xxxx` when there are no symbols (common in stripped or Windows
-binaries), and dynamically-resolved or IAT calls can show as raw pointers — e.g. `pdg` may
-render an imported call as `(*(code *)0x22a76)(...)` instead of the real API (one reason `pdz`
-is the default here). Don't trust a decompiler name in isolation — **cross-reference with
+binaries), and dynamically-resolved or unresolved IAT calls can show as raw pointers.
+Don't trust a decompiler name in isolation — **cross-reference with
 rizin's own analysis:**
 
 - `afns` / `afx` to see the strings and references a function makes — that usually reveals its job.

@@ -1,0 +1,163 @@
+diff --git a/src/SleighAsm.cpp b/src/SleighAsm.cpp
+index 82f8a90..e6d8533 100644
+--- a/src/SleighAsm.cpp
++++ b/src/SleighAsm.cpp
+@@ -4,6 +4,7 @@
+ 
+ #include "SleighAsm.h"
+ #include "ArchMap.h"
++#include "SleighHome.h"
+ 
+ using namespace ghidra;
+ 
+@@ -466,6 +467,11 @@ std::string SleighAsm::getSleighHome(RzConfig *cfg)
+ 		return path;
+ 	}
+ 
++std::string runtime_sleighhome = RzGhidraRuntimeSleighHome();
++    if (!runtime_sleighhome.empty()) {
++        if (cfg) rz_config_set(cfg, varname, runtime_sleighhome.c_str());
++        return runtime_sleighhome;
++    }
+ #ifdef RZ_GHIDRA_SLEIGHHOME_DEFAULT
+ 	if(rz_file_is_directory(RZ_GHIDRA_SLEIGHHOME_DEFAULT))
+ 	{
+diff --git a/src/SleighHome.h b/src/SleighHome.h
+new file mode 100644
+index 0000000..20a08e0
+--- /dev/null
++++ b/src/SleighHome.h
+@@ -0,0 +1,33 @@
++// SPDX-FileCopyrightText: 2026
++// SPDX-License-Identifier: LGPL-3.0-or-later
++
++#ifndef RZ_GHIDRA_SLEIGHHOME_H
++#define RZ_GHIDRA_SLEIGHHOME_H
++
++#include <string>
++#include <rz_util.h>
++
++static inline std::string RzGhidraRuntimeSleighHome()
++{
++	RzPath *sys_path = rz_path_new();
++	if(!sys_path)
++		return "";
++	char *libdir = rz_path_libdir(sys_path);
++	rz_path_free(sys_path);
++	if(!libdir)
++		return "";
++
++	char *path = rz_file_path_join(libdir, RZ_JOIN_3_PATHS("rizin", "plugins", "rz_ghidra_sleigh"));
++	rz_mem_free(libdir);
++
++	if(!path)
++		return "";
++
++	std::string result;
++	if(rz_file_is_directory(path))
++		result = path;
++	rz_mem_free(path);
++	return result;
++}
++
++#endif
+diff --git a/src/analysis_ghidra.cpp b/src/analysis_ghidra.cpp
+index 496f719..39d9b91 100644
+--- a/src/analysis_ghidra.cpp
++++ b/src/analysis_ghidra.cpp
+@@ -2380,7 +2380,7 @@ static bool sleigh_esil_float_add(RzAnalysisEsil *esil)
+ 			long double tmp = s + d;
+ 			auto raised = fetestexcept(FE_OVERFLOW);
+ 			if(raised & FE_OVERFLOW)
+-				ret = esil_pushnum_float(esil, NAN);
++				ret = esil_pushnum_float(esil, std::numeric_limits<long double>::quiet_NaN());
+ 			else
+ 				ret = esil_pushnum_float(esil, s + d);
+ 		}
+@@ -2425,7 +2425,7 @@ static bool sleigh_esil_float_sub(RzAnalysisEsil *esil)
+ 			long double tmp = d - s;
+ 			auto raised = fetestexcept(FE_OVERFLOW);
+ 			if(raised & FE_OVERFLOW)
+-				ret = esil_pushnum_float(esil, NAN);
++				ret = esil_pushnum_float(esil, std::numeric_limits<long double>::quiet_NaN());
+ 			else
+ 				ret = esil_pushnum_float(esil, d - s);
+ 		}
+@@ -2470,7 +2470,7 @@ static bool sleigh_esil_float_mul(RzAnalysisEsil *esil)
+ 			long double tmp = s * d;
+ 			auto raised = fetestexcept(FE_OVERFLOW);
+ 			if(raised & FE_OVERFLOW)
+-				ret = esil_pushnum_float(esil, NAN);
++				ret = esil_pushnum_float(esil, std::numeric_limits<long double>::quiet_NaN());
+ 			else
+ 				ret = esil_pushnum_float(esil, s * d);
+ 		}
+@@ -2515,7 +2515,7 @@ static bool sleigh_esil_float_div(RzAnalysisEsil *esil)
+ 			long double tmp = d / s;
+ 			auto raised = fetestexcept(FE_OVERFLOW);
+ 			if(raised & FE_OVERFLOW)
+-				ret = esil_pushnum_float(esil, NAN);
++				ret = esil_pushnum_float(esil, std::numeric_limits<long double>::quiet_NaN());
+ 			else
+ 				ret = esil_pushnum_float(esil, d / s);
+ 		}
+diff --git a/src/core_ghidra.cpp b/src/core_ghidra.cpp
+index ce03ea3..0baa5e0 100644
+--- a/src/core_ghidra.cpp
++++ b/src/core_ghidra.cpp
+@@ -7,6 +7,7 @@
+ #include "RizinArchitecture.h"
+ #include "CodeXMLParse.h"
+ #include "ArchMap.h"
++#include "SleighHome.h"
+ #include "PcodeFixupPreprocessor.h"
+ #include "rz_ghidra.h"
+ #include "rz_ghidra_internal.h"
+@@ -337,12 +338,12 @@ static void DecompileCmd(RzCore *core, DecompileMode mode)
+ 			case DecompileMode::OFFSET:
+ 			{
+ 				RzVector *offsets = rz_annotated_code_line_offsets(code);
+-				rz_core_annotated_code_print(core->cons, code, offsets);
++				rz_core_annotated_code_print(code, offsets);
+ 				rz_vector_free(offsets);
+ 			}
+ 			break;
+ 			case DecompileMode::DEFAULT:
+-				rz_core_annotated_code_print(core->cons, code, nullptr);
++				rz_core_annotated_code_print(code, nullptr);
+ 				break;
+ 			case DecompileMode::STATEMENTS:
+ 				rz_core_annotated_code_print_comment_cmds(code);
+@@ -578,6 +579,11 @@ static void SetInitialSleighHome(RzConfig *cfg)
+ 		return;
+ 	}
+ 
++std::string runtime_sleighhome = RzGhidraRuntimeSleighHome();
++    if (!runtime_sleighhome.empty()) {
++        cfg_var_sleighhome.Set(cfg, runtime_sleighhome.c_str());
++        return;
++    }
+ #ifdef RZ_GHIDRA_SLEIGHHOME_DEFAULT
+ 	if(rz_file_is_directory(RZ_GHIDRA_SLEIGHHOME_DEFAULT))
+ 	{
+diff --git a/src/rz_ghidra_internal.h b/src/rz_ghidra_internal.h
+index de0f4a5..c1a6fdb 100644
+--- a/src/rz_ghidra_internal.h
++++ b/src/rz_ghidra_internal.h
+@@ -1,11 +1,12 @@
+ // SPDX-FileCopyrightText: 2023 Florian Märkl <info@florianmaerkl.de>
+ // SPDX-License-Identifier: LGPL-3.0-or-later
+ 
+-#ifndef RZ_GHIDRA_H
+-#define RZ_GHIDRA_H
++#ifndef RZ_GHIDRA_INTERNAL_H
++#define RZ_GHIDRA_INTERNAL_H
++#include <rz_types.h>
+ 
+-void rz_ghidra_lib_init(void);
+-void rz_ghidra_lib_fini(void);
++RZ_API void rz_ghidra_lib_init(void);
++RZ_API void rz_ghidra_lib_fini(void);
+ 
+ #endif
+ 

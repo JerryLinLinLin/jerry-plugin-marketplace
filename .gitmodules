@@ -1,24 +1,18 @@
 [submodule "sources/rizin"]
 	path = sources/rizin
-	url = https://github.com/JerryLinLinLin/rizin.git
-	branch = windows-bundle-v0.8.2
+	url = https://github.com/rizinorg/rizin.git
 [submodule "sources/rz-ghidra"]
 	path = sources/rz-ghidra
-	url = https://github.com/JerryLinLinLin/rz-ghidra.git
-	branch = windows-bundle-v0.8.2
+	url = https://github.com/rizinorg/rz-ghidra.git
 [submodule "sources/jsdec"]
 	path = sources/jsdec
-	url = https://github.com/JerryLinLinLin/jsdec.git
-	branch = windows-bundle-v0.8.2
+	url = https://github.com/rizinorg/jsdec.git
 [submodule "sources/rz-retdec"]
 	path = sources/rz-retdec
-	url = https://github.com/JerryLinLinLin/rz-retdec.git
-	branch = windows-bundle-v0.8.2
+	url = https://github.com/rizinorg/rz-retdec.git
 [submodule "sources/rz-libyara"]
 	path = sources/rz-libyara
-	url = https://github.com/JerryLinLinLin/rz-libyara.git
-	branch = windows-bundle-v0.8.2
+	url = https://github.com/rizinorg/rz-libyara.git
 [submodule "sources/sigdb"]
 	path = sources/sigdb
-	url = https://github.com/JerryLinLinLin/sigdb.git
-	branch = windows-bundle-v0.8.2
+	url = https://github.com/rizinorg/sigdb.git

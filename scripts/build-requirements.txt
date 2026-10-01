@@ -1,0 +1,5 @@
+meson==1.12.1
+ninja==1.13.2
+pefile==2024.8.26
+PyYAML==6.0.3
+jsonschema==4.26.0

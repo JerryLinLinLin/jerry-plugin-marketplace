@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "bundleVersion": "0.3.0",
+  "releaseTag": "rizin-v0.3.0",
+  "rizinVersion": "0.9.1",
+  "checkedAt": "2026-10-01",
+  "repository": "JerryLinLinLin/rizin-win64-bundle",
+  "components": {
+    "rizin": {
+      "repository": "https://github.com/rizinorg/rizin",
+      "commit": "c3a90e9226d977f58f4e9c75f78fa6b07afe13c7",
+      "patch": null
+    },
+    "rz-ghidra": {
+      "repository": "https://github.com/rizinorg/rz-ghidra",
+      "commit": "64ea54a51c7f87983c9eba9cef8ee0c8cf2ac811",
+      "patch": "rz-ghidra-windows.patch"
+    },
+    "jsdec": {
+      "repository": "https://github.com/rizinorg/jsdec",
+      "commit": "9fc60988ddfe4231971f2cbf5f1064460072c2b3",
+      "patch": "jsdec-rizin09.patch"
+    },
+    "rz-retdec": {
+      "repository": "https://github.com/rizinorg/rz-retdec",
+      "commit": "4ac6b293553d7f5f00574e4dca4c21b799db63e1",
+      "patch": "rz-retdec-windows.patch"
+    },
+    "rz-libyara": {
+      "repository": "https://github.com/rizinorg/rz-libyara",
+      "commit": "451e3497f31475da15c6a1ddee2c62be75045e36",
+      "patch": "rz-libyara-yara458.patch"
+    },
+    "sigdb": {
+      "repository": "https://github.com/rizinorg/sigdb",
+      "commit": "4addbed50cd3b50eeef5a41d72533d079ebbfbf8",
+      "patch": null
+    }
+  },
+  "dependencies": {
+    "retdec": {
+      "version": "5.0",
+      "commit": "8272d0355794f8b8a63d8611b1dea50b4f2d87c3",
+      "sdk": "Verified v0.1.0 bundle SDK, same upstream revision"
+    },
+    "yara": {
+      "version": "4.5.8",
+      "commit": "84b0e3cc0e42f8f8e6b84d19c97ec3ac6ff8aee8"
+    },
+    "opensslYara": "3.5.9",
+    "opensslRetdec": "1.1.1w",
+    "zlib": "1.3.2",
+    "quickjs": "v0.8.0"
+  },
+  "downloads": {
+    "rizin": {
+      "file": "rizin-windows-shared64-v0.9.1.zip",
+      "url": "https://github.com/rizinorg/rizin/releases/download/v0.9.1/rizin-windows-shared64-v0.9.1.zip",
+      "sha256": "45ffa004e26653eaee8d262b8e6eeae09402a7d319c1f20a2ba794bd6af1cc28"
+    },
+    "retdecSdk": {
+      "file": "rizin-windows-x64-bundle-v0.1.0.zip",
+      "url": "https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/download/v0.1.0/rizin-windows-x64-bundle-v0.1.0.zip",
+      "sha256": "66be7b2708e773b16e6318c68ec8aa25b7ba331b5eed1b444942f0a31b8c50ba"
+    },
+    "openssl3": {
+      "file": "openssl-3.5.9.zip",
+      "url": "https://download.firedaemon.com/FireDaemon-OpenSSL/openssl-3.5.9.zip",
+      "sha256": "76da391395be029b44794857b9ff380255e02a0960a98314cd3f6a6816d82696"
+    },
+    "openssl11": {
+      "file": "openssl-1.1.1w.zip",
+      "url": "https://download.firedaemon.com/FireDaemon-OpenSSL/openssl-1.1.1w.zip",
+      "sha256": "1870b15bf6749e65ffbbadf52cdff3ee0e9f02943550bf4395574bb432af3eb8"
+    },
+    "zlib": {
+      "file": "zlib-1.3.2.tar.gz",
+      "url": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz",
+      "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+    }
+  }
+}

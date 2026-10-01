@@ -1,7 +1,7 @@
 {
   "name": "rizin-windows-re",
-  "version": "0.2.0",
-  "description": "Static reverse engineering and binary triage with the portable Rizin Windows toolkit.",
+  "version": "0.3.0",
+  "description": "Analyze native binaries and memory dumps with portable Windows x64 Rizin, three decompilers, YARA, and FLIRT.",
   "author": {
     "name": "JerryLinLinLin",
     "url": "https://github.com/JerryLinLinLin"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Rizin Windows RE",
-    "shortDescription": "Reverse engineer native binaries with Rizin.",
-    "longDescription": "Analyze, disassemble, decompile, and triage native binaries with a portable Windows Rizin bundle.",
+    "shortDescription": "Analyze binaries and memory dumps with Rizin.",
+    "longDescription": "A Windows x64 CLI toolkit and skill for binary inspection, memory-dump analysis, RetDec/Ghidra/jsdec decompilation, YARA scanning, and FLIRT signatures. The skill downloads a verified portable runtime from GitHub Releases when needed.",
     "developerName": "JerryLinLinLin",
     "category": "Security",
     "capabilities": [
@@ -30,6 +30,8 @@
     "websiteURL": "https://github.com/JerryLinLinLin/rizin-win64-bundle",
     "brandColor": "#F7A325",
     "logo": "./assets/icon.svg",
-    "defaultPrompt": "Analyze this binary with Rizin."
+    "defaultPrompt": [
+      "Analyze this binary or memory dump with Rizin."
+    ]
   }
 }

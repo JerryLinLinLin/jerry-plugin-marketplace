@@ -1,0 +1,76 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5d49f41..6b2e7cb 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -64,6 +64,7 @@ endif()
+ 
+ find_package(Rizin REQUIRED Core)
+ set(RIZIN_INSTALL_PLUGDIR "${Rizin_PLUGINDIR}" CACHE STRING "Directory to install rizin plugins into")
++file(TO_CMAKE_PATH "${RIZIN_INSTALL_PLUGDIR}" RIZIN_INSTALL_PLUGDIR)
+ 
+ if (BUILD_CUTTER_PLUGIN)
+ 	find_package(Cutter REQUIRED)
+diff --git a/src/rz-plugin/CMakeLists.txt b/src/rz-plugin/CMakeLists.txt
+index 615f248..128f391 100644
+--- a/src/rz-plugin/CMakeLists.txt
++++ b/src/rz-plugin/CMakeLists.txt
+@@ -24,10 +24,15 @@ if (UNIX AND NOT APPLE)
+ endif()
+ list(APPEND CORE_LIBS retdec::retdec)
+ if (MSVC)
++	if (NOT BUILD_BUNDLED_RETDEC)
++		find_library(RETDEC_CAPSTONE_LIBRARY NAMES retdec-capstone REQUIRED)
++	else()
++		set(RETDEC_CAPSTONE_LIBRARY "${CMAKE_BINARY_DIR}/deps/install/capstone/lib/capstone.lib")
++	endif()
+ 	list(APPEND CORE_LIBS
+-		retdec::bin2llvmir -WHOLEARCHIVE:$<TARGET_FILE_NAME:retdec::bin2llvmir>
+-		retdec::llvmir2hll -WHOLEARCHIVE:$<TARGET_FILE_NAME:retdec::llvmir2hll>
+-		retdec::llvmir2hll -WHOLEARCHIVE:$<TARGET_FILE_NAME:retdec::deps::capstone>
++		retdec::bin2llvmir -WHOLEARCHIVE:$<TARGET_FILE:retdec::bin2llvmir>
++		retdec::llvmir2hll -WHOLEARCHIVE:$<TARGET_FILE:retdec::llvmir2hll>
++		retdec::deps::capstone -WHOLEARCHIVE:${RETDEC_CAPSTONE_LIBRARY}
+ 	)
+ 
+ 	set_property(TARGET core_retdec
+diff --git a/src/rz-plugin/data.cpp b/src/rz-plugin/data.cpp
+index c25fabe..6305c68 100644
+--- a/src/rz-plugin/data.cpp
++++ b/src/rz-plugin/data.cpp
+@@ -386,7 +386,9 @@ void RizinDatabase::fetchFunctionCallingconvention(Function &function, RzAnalysi
+  */
+ void RizinDatabase::fetchFunctionReturnType(Function &function, RzAnalysisFunction &rzfnc) const
+ {
+-	function.returnType = Type("void");
++	// An unknown prototype does not prove a void return. Forcing void here
++	// lets RetDec optimize away the entire calculation of a pure function.
++	function.returnType = Type("");
+ 	char* key = rz_analysis_function_name_resolve(_rzcore.analysis, rzfnc.name);
+ 	auto typedb = rz_analysis_get_type_db(_rzcore.analysis);
+ 
+diff --git a/src/rz-plugin/rzretdec.cpp b/src/rz-plugin/rzretdec.cpp
+index c294ab4..3ce144f 100644
+--- a/src/rz-plugin/rzretdec.cpp
++++ b/src/rz-plugin/rzretdec.cpp
+@@ -180,13 +180,19 @@ void createConfigHashFile(const retdec::config::Config& config)
+  */
+ retdec::config::Config loadDefaultConfig()
+ {
+-	// Perhaps support signatures are installed in RZ_PLUGDIR?
+-	auto plugdir = rz_str_home(RZ_PLUGINS);
++	// Resolve support files from the portable runtime instead of the user's
++	// plugin directory. A moved installation must keep the same type database.
++	auto sysPath = rz_path_new();
++	if (!sysPath) throw DecompilationError("Unable to resolve the runtime support path");
++	auto plugdir = rz_path_system(sysPath, RZ_JOIN_3_PATHS("lib", "rizin", "plugins"));
++	rz_path_free(sysPath);
++	if (!plugdir) throw DecompilationError("Unable to resolve the runtime support path");
+ 
+ 	// Loads configuration from file - also contains default config.
+ 	auto rdConf = retdec::config::Config::fromJsonString(DefaultConfigJSON);
+ 	// Paths to the signatures, etc.
+ 	rdConf.parameters.fixRelativePaths(plugdir);
++	rz_mem_free(plugdir);
+ 
+ 	return rdConf;
+ }
