@@ -38,10 +38,10 @@ After packaging, extract the archive into a new path with spaces and Unicode and
 ## Packaging
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -Version 0.3.0
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -Version 0.3.1
 ```
 
-This creates a runtime ZIP, plugin ZIP, standalone skill package, and SHA256SUMS. Tag the tested source commit as rizin-v0.3.0 and upload these assets together. Bump bundle/plugin versions and the lock file for future releases; other marketplace plugins can use their own tag prefixes.
+This creates a runtime ZIP, plugin ZIP, standalone skill package, and SHA256SUMS. Tag the tested source commit as rizin-v0.3.1 and upload these assets together. Bump bundle/plugin versions and the lock file for future releases; other marketplace plugins can use their own tag prefixes.
 
 Validate discovery without changing user configuration:
 

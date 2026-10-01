@@ -2,7 +2,7 @@
 
 A portable Windows x64 CLI and Codex skill for native binary and memory-dump analysis.
 
-Download the runtime ZIP and SHA256SUMS from [release rizin-v0.3.0](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/tag/rizin-v0.3.0), verify the archive hash, and extract the whole rizin folder. Run `rizin\bin\rizin.exe -v` by absolute path, or add its bin directory to the current process PATH. Non-system runtime DLLs are included. Windows 10 (1903+) or Windows 11 x64 is required; administrator installation is unnecessary.
+Download the runtime ZIP and SHA256SUMS from [release rizin-v0.3.1](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/tag/rizin-v0.3.1), verify the archive hash, and extract the whole rizin folder. Run `rizin\bin\rizin.exe -v` by absolute path, or add its bin directory to the current process PATH. Non-system runtime DLLs are included. Windows 10 (1903+) or Windows 11 x64 is required; administrator installation is unnecessary.
 
 | Component | Version / upstream revision | Command |
 | --- | --- | --- |

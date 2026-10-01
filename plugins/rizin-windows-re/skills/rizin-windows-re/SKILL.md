@@ -29,7 +29,7 @@ The installer finds the newest stable Rizin bundle among the repository's
 `%LOCALAPPDATA%\Programs\Rizin\<release-tag>\rizin`. It returns the executable path and
 adds `bin` to the current PowerShell process's `PATH`. Shell tool processes may not share
 environment changes: retain the returned absolute executable path for subsequent calls.
-Use `-Destination <directory>` for a workspace-local install, `-Tag rizin-v0.3.0` for the
+Use `-Destination <directory>` for a workspace-local install, `-Tag rizin-v0.3.1` for the
 tested release, or `-AddToUserPath` when the user wants a persistent user PATH entry.
 No administrator privileges or separate VC++ runtime installation are required.
 Use Windows 10 version 1903 or later (including Windows 11), x64. The CLI's

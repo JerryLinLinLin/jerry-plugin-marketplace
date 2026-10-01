@@ -18,7 +18,7 @@ The catalog is [.agents/plugins/marketplace.json](.agents/plugins/marketplace.js
 
 ## Portable Rizin download
 
-Get `rizin-windows-x64-bundle-v0.3.0.zip` and `SHA256SUMS` from the [Rizin release](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/tag/rizin-v0.3.0). Verify SHA-256, extract the complete `rizin` directory, and run:
+Get `rizin-windows-x64-bundle-v0.3.1.zip` and `SHA256SUMS` from the [Rizin release](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/tag/rizin-v0.3.1). Verify SHA-256, extract the complete `rizin` directory, and run:
 
 ```powershell
 & 'C:\path\to\rizin\bin\rizin.exe' -v
@@ -39,7 +39,7 @@ Rizin includes a portable Agent Plugins manifest and a `.codex-plugin/plugin.jso
 
 ## Build and verification
 
-See [the build guide](docs/build.md), [component lock file](bundle.lock.json), and [release validation](docs/validation-v0.3.0.md). Build sources are pinned under `sources/`; Windows compatibility patches live under `patches/`. Generated files stay in the ignored `build/` directory.
+See [the build guide](docs/build.md), [component lock file](bundle.lock.json), and [release validation](docs/validation-v0.3.1.md). Build sources are pinned under `sources/`; Windows compatibility patches live under `patches/`. Generated files stay in the ignored `build/` directory.
 
 ## Repository naming
 

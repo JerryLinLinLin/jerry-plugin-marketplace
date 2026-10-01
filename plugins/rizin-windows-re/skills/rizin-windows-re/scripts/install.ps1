@@ -13,13 +13,13 @@ if ($Repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') { throw 'Invalid 
 $headers = @{ 'User-Agent' = 'rizin-windows-re-installer'; 'Accept' = 'application/vnd.github+json' }
 $api = "https://api.github.com/repos/$Repository/releases"
 if ($Tag) {
-    $releases = @(Invoke-RestMethod -Uri "$api/tags/$([Uri]::EscapeDataString($Tag))" -Headers $headers)
+    $releases = Invoke-RestMethod -Uri "$api/tags/$([Uri]::EscapeDataString($Tag))" -Headers $headers
 } else {
     # Other marketplace plugins may release independently; select by asset.
-    $releases = @(Invoke-RestMethod -Uri "${api}?per_page=100" -Headers $headers)
+    $releases = Invoke-RestMethod -Uri "${api}?per_page=100" -Headers $headers
 }
 $assetPattern = '^rizin-windows-x64-bundle-v[0-9][A-Za-z0-9.-]*\.zip$'
-$release = $releases | Where-Object {
+$release = @($releases) | Where-Object {
     -not $_.draft -and -not $_.prerelease -and
     @($_.assets | Where-Object { $_.name -match $assetPattern }).Count -eq 1 -and
     @($_.assets | Where-Object { $_.name -eq 'SHA256SUMS' }).Count -eq 1

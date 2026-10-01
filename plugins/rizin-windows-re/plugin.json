@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "rizin-windows-re",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Analyze native binaries and memory dumps with portable Windows x64 Rizin, three decompilers, YARA, and FLIRT.",
   "author": {
     "name": "JerryLinLinLin",

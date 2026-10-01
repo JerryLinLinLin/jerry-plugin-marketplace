@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.3.0",
-  "releaseTag": "rizin-v0.3.0",
+  "bundleVersion": "0.3.1",
+  "releaseTag": "rizin-v0.3.1",
   "rizinVersion": "0.9.1",
   "checkedAt": "2026-10-01",
   "repository": "JerryLinLinLin/rizin-win64-bundle",

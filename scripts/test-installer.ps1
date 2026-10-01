@@ -10,7 +10,7 @@ if ($archives.Count -ne 1) { throw 'Expected exactly one runtime archive' }
 $archive = $archives[0]
 $rizinFixtureState.archiveName = $archive.Name
 $rizinFixtureState.release = [pscustomobject]@{
-    tag_name = 'rizin-v0.3.0'; draft = $false; prerelease = $false
+    tag_name = 'rizin-v0.3.1'; draft = $false; prerelease = $false
     assets = @(
         [pscustomobject]@{name=$archive.Name; browser_download_url="https://fixture.invalid/$($archive.Name)"; digest=('sha256:' + (Get-FileHash $archive.FullName).Hash.ToLowerInvariant())},
         [pscustomobject]@{name='SHA256SUMS'; browser_download_url='https://fixture.invalid/SHA256SUMS'}
@@ -18,7 +18,14 @@ $rizinFixtureState.release = [pscustomobject]@{
 }
 # Replace only the HTTP boundary. Exercise real checksum, extraction, execution,
 # and directory handling in the installer, without publishing an untested asset.
-Set-Item Function:Invoke-RestMethod -Value ({ param($Uri, $Headers) return $rizinFixtureState.release }.GetNewClosure())
+Set-Item Function:Invoke-RestMethod -Value ({
+    param($Uri, $Headers)
+    if ($Uri -match '/tags/') { return $rizinFixtureState.release }
+    # Invoke-RestMethod emits a JSON array as one pipeline object. Include an
+    # unrelated newer release to exercise marketplace asset selection too.
+    $other = [pscustomobject]@{tag_name='another-plugin-v1.0.0'; draft=$false; prerelease=$false; assets=@()}
+    Write-Output -NoEnumerate @($other, $rizinFixtureState.release)
+}.GetNewClosure())
 Set-Item Function:Invoke-WebRequest -Value ({
     param($Uri, $Headers, $OutFile, [switch]$UseBasicParsing)
     if (-not $Uri.StartsWith('https://fixture.invalid/')) { throw 'Unexpected test URL' }
@@ -41,5 +48,5 @@ $rizinFixtureState.corrupt = $true
 $refusedChecksum = $false
 try { & $installer -Destination (Join-Path $ScratchDir 'invalid checksum') | Out-Null }
 catch { if ($_.Exception.Message -eq 'SHA-256 verification failed.') { $refusedChecksum = $true } else { throw } }
-if (-not $refusedChecksum -or (Test-Path -LiteralPath (Join-Path $ScratchDir 'invalid checksum\rizin-v0.3.0'))) { throw 'Checksum failure did not prevent installation' }
+if (-not $refusedChecksum -or (Test-Path -LiteralPath (Join-Path $ScratchDir 'invalid checksum\rizin-v0.3.1'))) { throw 'Checksum failure did not prevent installation' }
 [pscustomobject]@{verifiedInstall=$true; existingInstallPreserved=$true; corruptChecksumRejected=$true; executable=$result.Executable} | ConvertTo-Json
