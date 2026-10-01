@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 if (-not [Environment]::Is64BitOperatingSystem -or $env:OS -ne 'Windows_NT') { throw 'This runtime requires 64-bit Windows.' }
 if ($Repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') { throw 'Invalid GitHub repository.' }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$headers = @{ 'User-Agent' = 'rizin-windows-re-installer'; 'Accept' = 'application/vnd.github+json' }
+$headers = @{ 'User-Agent' = 'rizin-re-toolkit-installer'; 'Accept' = 'application/vnd.github+json' }
 $api = "https://api.github.com/repos/$Repository/releases"
 if ($Tag) {
     $releases = Invoke-RestMethod -Uri "$api/tags/$([Uri]::EscapeDataString($Tag))" -Headers $headers

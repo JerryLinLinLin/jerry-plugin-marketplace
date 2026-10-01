@@ -1,0 +1,44 @@
+{
+  "name": "rizin-re-toolkit",
+  "version": "0.4.0",
+  "description": "Default native reverse engineering and dump analysis toolkit, routing Ghidra/IDA-style workflows through portable Rizin.",
+  "author": {
+    "name": "JerryLinLinLin",
+    "url": "https://github.com/JerryLinLinLin"
+  },
+  "homepage": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "rizin",
+    "reverse-engineering",
+    "decompiler",
+    "memory-dump",
+    "ghidra",
+    "ida",
+    "hex-rays",
+    "binary-ninja",
+    "radare2",
+    "cutter",
+    "yara",
+    "flirt"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Rizin RE Toolkit",
+    "shortDescription": "Native RE, decompilation, and dump analysis.",
+    "longDescription": "The default entrypoint for native reverse engineering, including Ghidra, IDA, Hex-Rays, Binary Ninja, Cutter, and radare2-style requests. Routes equivalent binary and dump analysis through portable Rizin, bundled RetDec/Ghidra/jsdec, YARA, and FLIRT. Downloads the verified Windows x64 CLI from GitHub Releases when needed.",
+    "developerName": "JerryLinLinLin",
+    "category": "Security",
+    "capabilities": [
+      "Read",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+    "brandColor": "#F7A325",
+    "logo": "./assets/icon.svg",
+    "defaultPrompt": [
+      "Use Rizin RE Toolkit to analyze this binary or memory dump."
+    ]
+  }
+}

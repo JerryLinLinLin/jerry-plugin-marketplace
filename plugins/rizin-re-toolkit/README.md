@@ -1,6 +1,6 @@
-# Rizin Windows RE
+# Rizin RE Toolkit
 
-A portable Windows x64 CLI and Codex skill for native binary and memory-dump analysis.
+A portable Windows x64 CLI and Codex skill serving as the default entrypoint for native binary and memory-dump analysis. Plugin/skill version: **0.4.0**. Plugin ID and skill invocation: `rizin-re-toolkit` / `$rizin-re-toolkit`.
 
 Download the runtime ZIP and SHA256SUMS from [release rizin-v0.3.1](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-v0.3.1), verify the archive hash, and extract the whole rizin folder. Run `rizin\bin\rizin.exe -v` by absolute path, or add its bin directory to the current process PATH. Non-system runtime DLLs are included. Windows 10 (1903+) or Windows 11 x64 is required; administrator installation is unnecessary.
 
@@ -17,9 +17,13 @@ Versions were checked on October 1, 2026. Exact revisions, dependency hashes, an
 
 ## Agent setup
 
-Install **Rizin Windows RE** from **My Plugin Marketplace** in Codex. The [skill](skills/rizin-windows-re/SKILL.md) teaches the agent to download the CLI, run noninteractive analysis, compare decompilers, and investigate memory dumps.
+Install **Rizin RE Toolkit** from **My Plugin Marketplace** in Codex. The [skill](skills/rizin-re-toolkit/SKILL.md) teaches the agent to download the CLI, run noninteractive analysis, compare decompilers, and investigate memory dumps.
 
-The [PowerShell installer](skills/rizin-windows-re/scripts/install.ps1) supports a user-level install, an explicit destination, a fixed release tag, and optional user PATH registration. It verifies SHA-256 before running the extracted CLI. The large runtime is a separate release asset.
+The skill automatically applies to ordinary RE requests, including tasks phrased with Ghidra, IDA Pro/Hex-Rays, Binary Ninja, Cutter, radare2, or related tool names. Equivalent work uses the Rizin CLI; Ghidra decompilation uses bundled `pdg`, while general/IDA-style PE analysis starts with Rizin triage and `pdz`. The skill reports the actual engine used and checks native-project or unsupported-tool requirements before substituting workflows.
+
+Download the independent [plugin and skill packages](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.0) if needed. The runtime continues to use the verified `rizin-v0.3.1` release. If the former `rizin-windows-re` plugin is installed, refresh the marketplace, install the new plugin, and remove the old installation to avoid duplicate skills.
+
+The [PowerShell installer](skills/rizin-re-toolkit/scripts/install.ps1) supports a user-level install, an explicit destination, a fixed release tag, and optional user PATH registration. It verifies SHA-256 before running the extracted CLI. The large runtime is a separate release asset.
 
 ## Examples
 
@@ -29,7 +33,7 @@ rizin -A -q -N -e scr.color=0 -c 'pdz @ main' sample.exe
 rizin -q -N -e scr.color=0 -c iI -c omlj -c il sample.dmp
 ```
 
-Use a real function/address instead of assuming a main symbol exists. For dumps, inspect captured mappings and analyze a bounded function before decompilation. The [dump workflow](skills/rizin-windows-re/references/memory-dumps.md) covers MDMP, DMP64, ELF core, raw memory, ASLR, and address translation.
+Use a real function/address instead of assuming a main symbol exists. For dumps, inspect captured mappings and analyze a bounded function before decompilation. The [dump workflow](skills/rizin-re-toolkit/references/memory-dumps.md) covers MDMP, DMP64, ELF core, raw memory, ASLR, and address translation.
 
 ## Portability and changes
 

@@ -22,8 +22,14 @@ Set-Item Function:Invoke-RestMethod -Value ({
     param($Uri, $Headers)
     if ($Uri -match '/tags/') { return $rizinFixtureState.release }
     # Invoke-RestMethod emits a JSON array as one pipeline object. Include an
-    # unrelated newer release to exercise marketplace asset selection too.
-    $other = [pscustomobject]@{tag_name='another-plugin-v1.0.0'; draft=$false; prerelease=$false; assets=@()}
+    # newer plugin-only release to exercise independent version selection too.
+    $other = [pscustomobject]@{
+        tag_name='rizin-re-toolkit-v0.4.0'; draft=$false; prerelease=$false
+        assets=@(
+            [pscustomobject]@{name='rizin-re-toolkit-plugin-v0.4.0.zip'},
+            [pscustomobject]@{name='SHA256SUMS'}
+        )
+    }
     Write-Output -NoEnumerate @($other, $rizinFixtureState.release)
 }.GetNewClosure())
 Set-Item Function:Invoke-WebRequest -Value ({
@@ -36,7 +42,7 @@ Set-Item Function:Invoke-WebRequest -Value ({
         Copy-Item -LiteralPath (Join-Path $rizinFixtureState.files $name) -Destination $OutFile
     }
 }.GetNewClosure())
-$installer = Join-Path $repoRoot 'plugins\rizin-windows-re\skills\rizin-windows-re\scripts\install.ps1'
+$installer = Join-Path $repoRoot 'plugins\rizin-re-toolkit\skills\rizin-re-toolkit\scripts\install.ps1'
 $result = & $installer -Destination (Join-Path $ScratchDir 'valid install')
 if (-not (Test-Path -LiteralPath $result.Executable)) { throw 'Installer did not produce an executable' }
 $originalHash = (Get-FileHash -LiteralPath $result.Executable).Hash

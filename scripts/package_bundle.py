@@ -1,4 +1,4 @@
-"""Package runtime, plugin, and standalone skill from a verified version."""
+"""Package the runtime and independently versioned plugin/skill artifacts."""
 import argparse
 import hashlib
 import json
@@ -24,39 +24,53 @@ def archive(source, output, include_root=False):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', required=True)
-    parser.add_argument('--runtime', type=Path, required=True)
+    parser.add_argument('--runtime', type=Path)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--plugin-only', action='store_true')
     args = parser.parse_args()
     if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', args.version):
         raise RuntimeError('Use a numeric semantic version')
-    runtime, output = args.runtime.resolve(), args.output.resolve()
-    if not runtime.is_relative_to(ROOT / 'build') or not output.is_relative_to(ROOT / 'build'):
-        raise RuntimeError('Runtime and output must be inside the repository build directory')
-    if output.is_relative_to(runtime):
-        raise RuntimeError('Output must not be inside the runtime')
-    manifest = json.loads((runtime / 'bundle-manifest.json').read_text(encoding='utf-8-sig'))
-    plugin = ROOT / 'plugins/rizin-windows-re'
+    output = args.output.resolve()
+    if not output.is_relative_to(ROOT / 'build'):
+        raise RuntimeError('Output must be inside the repository build directory')
+    plugin = ROOT / 'plugins/rizin-re-toolkit'
     metadata = json.loads((plugin / 'plugin.json').read_text(encoding='utf-8-sig'))
-    if manifest['bundleVersion'] != args.version or metadata['version'] != args.version:
-        raise RuntimeError('Runtime, plugin, and requested versions disagree')
+    plugin_version = metadata['version']
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', plugin_version):
+        raise RuntimeError('Plugin manifest must use a numeric semantic version')
+    packages = []
+    if args.plugin_only:
+        if plugin_version != args.version:
+            raise RuntimeError('Plugin and requested versions disagree')
+    else:
+        if args.runtime is None:
+            raise RuntimeError('--runtime is required unless --plugin-only is set')
+        runtime = args.runtime.resolve()
+        if not runtime.is_relative_to(ROOT / 'build') or output.is_relative_to(runtime):
+            raise RuntimeError('Runtime must be inside build, and output must be outside the runtime')
+        manifest = json.loads((runtime / 'bundle-manifest.json').read_text(encoding='utf-8-sig'))
+        if manifest['bundleVersion'] != args.version:
+            raise RuntimeError('Runtime and requested versions disagree')
+        packages.append((runtime, f'rizin-windows-x64-bundle-v{args.version}.zip', True))
+    packages.extend([
+        (plugin, f'rizin-re-toolkit-plugin-v{plugin_version}.zip', False),
+        (plugin / 'skills/rizin-re-toolkit', f'rizin-re-toolkit-v{plugin_version}.skill', True),
+    ])
     output.mkdir(parents=True, exist_ok=True)
     artifacts = []
-    for folder, name, root in [
-        (runtime, f'rizin-windows-x64-bundle-v{args.version}.zip', True),
-        (plugin, f'rizin-windows-re-plugin-v{args.version}.zip', False),
-        (plugin / 'skills/rizin-windows-re', f'rizin-windows-re-v{args.version}.skill', True),
-    ]:
+    for folder, name, root in packages:
         destination = output / name
         archive(folder, destination, root)
         artifacts.append(destination)
         print(f'{destination.name}: {destination.stat().st_size:,} bytes', flush=True)
-    manifest_path = output / 'bundle-manifest.json'
-    shutil.copy2(runtime / 'bundle-manifest.json', manifest_path)
-    artifacts.append(manifest_path)
-    # Package evidence only when it was produced by the verifier, never a dump.
-    evidence = output / 'verification.json'
-    if evidence.is_file():
-        artifacts.append(evidence)
+    if not args.plugin_only:
+        manifest_path = output / 'bundle-manifest.json'
+        shutil.copy2(runtime / 'bundle-manifest.json', manifest_path)
+        artifacts.append(manifest_path)
+        # Package evidence only when it was produced by the verifier, never a dump.
+        evidence = output / 'verification.json'
+        if evidence.is_file():
+            artifacts.append(evidence)
     sums = ''.join(f'{hashlib.file_digest(file.open("rb"), "sha256").hexdigest()}  {file.name}\n' for file in artifacts)
     (output / 'SHA256SUMS').write_text(sums, encoding='ascii')
 

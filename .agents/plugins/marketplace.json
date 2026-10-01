@@ -3,8 +3,8 @@
   "interface": {"displayName": "My Plugin Marketplace"},
   "plugins": [
     {
-      "name": "rizin-windows-re",
-      "source": {"source": "local", "path": "./plugins/rizin-windows-re"},
+      "name": "rizin-re-toolkit",
+      "source": {"source": "local", "path": "./plugins/rizin-re-toolkit"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
       "category": "Security"
     }

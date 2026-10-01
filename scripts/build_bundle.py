@@ -184,8 +184,8 @@ def assemble():
     manifest['windowsManifest'] = {'file': 'scripts/windows-utf8.manifest', 'sha256': hashlib.sha256((ROOT / 'scripts/windows-utf8.manifest').read_bytes()).hexdigest(), 'minimumWindows': 'Windows 10 version 1903 (x64)'}
     manifest['patches'] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT / 'patches').glob('*.patch')}
     (target / 'bundle-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-    copy_tree(ROOT / 'plugins/rizin-windows-re/skills', target / 'skills')
-    shutil.copy2(ROOT / 'plugins/rizin-windows-re/README.md', target / 'README.md')
+    copy_tree(ROOT / 'plugins/rizin-re-toolkit/skills', target / 'skills')
+    shutil.copy2(ROOT / 'plugins/rizin-re-toolkit/README.md', target / 'README.md')
     shutil.copy2(ROOT / 'docs/third-party.md', target / 'THIRD-PARTY.md')
     print(f'Portable runtime: {target}', flush=True)
 
