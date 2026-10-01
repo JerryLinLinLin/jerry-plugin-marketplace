@@ -7,8 +7,8 @@
     "name": "JerryLinLinLin",
     "url": "https://github.com/JerryLinLinLin"
   },
-  "homepage": "https://github.com/JerryLinLinLin/rizin-win64-bundle",
-  "repository": "https://github.com/JerryLinLinLin/rizin-win64-bundle",
+  "homepage": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
   "license": "MIT",
   "keywords": [
     "rizin",
@@ -27,7 +27,7 @@
         "developerName": "JerryLinLinLin",
         "category": "Security",
         "capabilities": ["Read", "Execute"],
-        "websiteURL": "https://github.com/JerryLinLinLin/rizin-win64-bundle",
+        "websiteURL": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
         "brandColor": "#F7A325",
         "logo": "./assets/icon.svg",
         "defaultPrompt": ["Analyze this binary or memory dump with Rizin."]

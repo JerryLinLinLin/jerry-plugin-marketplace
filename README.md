@@ -9,7 +9,7 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 ## Add to Codex
 
 ```powershell
-codex plugin marketplace add JerryLinLinLin/rizin-win64-bundle --ref main
+codex plugin marketplace add JerryLinLinLin/jerry-plugin-marketplace --ref main
 ```
 
 Open the plugin directory, select **My Plugin Marketplace**, and install **Rizin Windows RE**. A normal marketplace clone does not need the build-source submodules. The CLI is downloaded separately from GitHub Releases when the skill needs it.
@@ -18,7 +18,7 @@ The catalog is [.agents/plugins/marketplace.json](.agents/plugins/marketplace.js
 
 ## Portable Rizin download
 
-Get `rizin-windows-x64-bundle-v0.3.1.zip` and `SHA256SUMS` from the [Rizin release](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/tag/rizin-v0.3.1). Verify SHA-256, extract the complete `rizin` directory, and run:
+Get `rizin-windows-x64-bundle-v0.3.1.zip` and `SHA256SUMS` from the [Rizin release](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-v0.3.1). Verify SHA-256, extract the complete `rizin` directory, and run:
 
 ```powershell
 & 'C:\path\to\rizin\bin\rizin.exe' -v
@@ -40,10 +40,6 @@ Rizin includes a portable Agent Plugins manifest and a `.codex-plugin/plugin.jso
 ## Build and verification
 
 See [the build guide](docs/build.md), [component lock file](bundle.lock.json), and [release validation](docs/validation-v0.3.1.md). Build sources are pinned under `sources/`; Windows compatibility patches live under `patches/`. Generated files stay in the ignored `build/` directory.
-
-## Repository naming
-
-The GitHub repository name is unchanged. Possible future names: `my-plugin-marketplace`, `jerry-codex-plugins`, or `jerry-agent-toolbox`. After renaming, update repository URLs in the plugin manifests, installer default, lock file, and documentation. Plugin identity and marketplace-relative paths can stay the same.
 
 ## License
 

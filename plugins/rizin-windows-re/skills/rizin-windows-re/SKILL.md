@@ -24,7 +24,7 @@ Use an existing verified bundle when available. Otherwise run the bundled
 ```
 
 The installer finds the newest stable Rizin bundle among the repository's
-[GitHub releases](https://github.com/JerryLinLinLin/rizin-win64-bundle/releases), verifies
+[GitHub releases](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases), verifies
 `SHA256SUMS` and the GitHub asset digest when available, then extracts into
 `%LOCALAPPDATA%\Programs\Rizin\<release-tag>\rizin`. It returns the executable path and
 adds `bin` to the current PowerShell process's `PATH`. Shell tool processes may not share

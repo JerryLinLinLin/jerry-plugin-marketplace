@@ -3,8 +3,8 @@
 The runtime starts with official Rizin 0.9.1 shared binaries. Plugins are rebuilt from locked upstream commits plus Windows patches. Prerequisites: VS 2026 C++ x64 tools, Windows SDK, CMake, Git, and Python 3.12+.
 
 ```powershell
-git clone https://github.com/JerryLinLinLin/rizin-win64-bundle.git
-cd rizin-win64-bundle
+git clone https://github.com/JerryLinLinLin/jerry-plugin-marketplace.git
+cd jerry-plugin-marketplace
 git submodule update --init --depth 1
 py -3 -m venv build\tools
 & .\build\tools\Scripts\python.exe -m pip install -r scripts\build-requirements.txt

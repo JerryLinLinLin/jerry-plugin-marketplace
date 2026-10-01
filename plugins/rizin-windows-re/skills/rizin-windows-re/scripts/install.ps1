@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$Repository = 'JerryLinLinLin/rizin-win64-bundle',
+    [string]$Repository = 'JerryLinLinLin/jerry-plugin-marketplace',
     [string]$Tag = '',
     [string]$Destination = (Join-Path $env:LOCALAPPDATA 'Programs\Rizin'),
     [switch]$AddToUserPath

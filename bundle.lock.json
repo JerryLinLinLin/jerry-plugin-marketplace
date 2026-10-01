@@ -4,7 +4,7 @@
   "releaseTag": "rizin-v0.3.1",
   "rizinVersion": "0.9.1",
   "checkedAt": "2026-10-01",
-  "repository": "JerryLinLinLin/rizin-win64-bundle",
+  "repository": "JerryLinLinLin/jerry-plugin-marketplace",
   "components": {
     "rizin": {
       "repository": "https://github.com/rizinorg/rizin",
@@ -60,7 +60,7 @@
     },
     "retdecSdk": {
       "file": "rizin-windows-x64-bundle-v0.1.0.zip",
-      "url": "https://github.com/JerryLinLinLin/rizin-win64-bundle/releases/download/v0.1.0/rizin-windows-x64-bundle-v0.1.0.zip",
+      "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/v0.1.0/rizin-windows-x64-bundle-v0.1.0.zip",
       "sha256": "66be7b2708e773b16e6318c68ec8aa25b7ba331b5eed1b444942f0a31b8c50ba"
     },
     "openssl3": {
