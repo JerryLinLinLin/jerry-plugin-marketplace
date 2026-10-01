@@ -1,6 +1,6 @@
 {
   "name": "my-plugin-marketplace",
-  "interface": {"displayName": "My Plugin Marketplace"},
+  "interface": {"displayName": "Jerry's Plugin Marketplace"},
   "plugins": [
     {
       "name": "rizin-re-toolkit",

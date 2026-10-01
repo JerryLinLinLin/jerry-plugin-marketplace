@@ -1,4 +1,4 @@
-# My Plugin Marketplace
+# Jerry's Plugin Marketplace
 
 A personal Codex plugin marketplace. Each plugin lives in its own folder, so this repository can grow beyond the original Rizin bundle.
 
@@ -12,7 +12,7 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 codex plugin marketplace add JerryLinLinLin/jerry-plugin-marketplace --ref main
 ```
 
-Open the plugin directory, select **My Plugin Marketplace**, and install **Rizin RE Toolkit**. A normal marketplace clone does not need the build-source submodules. The CLI is downloaded separately from GitHub Releases when the skill needs it.
+Open the plugin directory, select **Jerry's Plugin Marketplace**, and install **Rizin RE Toolkit**. A normal marketplace clone does not need the build-source submodules. The CLI is downloaded separately from GitHub Releases when the skill needs it.
 
 The plugin and skill IDs are both `rizin-re-toolkit`; invoke the skill explicitly as `$rizin-re-toolkit`. Automatic skill selection is enabled. Native RE requests mentioning Ghidra, IDA/Hex-Rays, Binary Ninja, Cutter, radare2, and related tools route to the toolkit's equivalent CLI workflow by default. Ghidra requests use its bundled `pdg` engine. Native application projects, tool-specific development, and unsupported debugging workflows receive a capability check rather than a claim of compatibility.
 

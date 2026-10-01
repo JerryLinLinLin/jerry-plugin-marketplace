@@ -17,7 +17,7 @@ Versions were checked on October 1, 2026. Exact revisions, dependency hashes, an
 
 ## Agent setup
 
-Install **Rizin RE Toolkit** from **My Plugin Marketplace** in Codex. The [skill](skills/rizin-re-toolkit/SKILL.md) teaches the agent to download the CLI, run noninteractive analysis, compare decompilers, and investigate memory dumps.
+Install **Rizin RE Toolkit** from **Jerry's Plugin Marketplace** in Codex. The [skill](skills/rizin-re-toolkit/SKILL.md) teaches the agent to download the CLI, run noninteractive analysis, compare decompilers, and investigate memory dumps.
 
 The skill automatically applies to ordinary RE requests, including tasks phrased with Ghidra, IDA Pro/Hex-Rays, Binary Ninja, Cutter, radare2, or related tool names. Equivalent work uses the Rizin CLI; Ghidra decompilation uses bundled `pdg`, while general/IDA-style PE analysis starts with Rizin triage and `pdz`. The skill reports the actual engine used and checks native-project or unsupported-tool requirements before substituting workflows.
 
