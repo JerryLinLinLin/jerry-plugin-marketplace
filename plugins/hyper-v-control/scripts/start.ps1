@@ -7,8 +7,9 @@ if (-not (Test-Path -LiteralPath $exe)) {
     $exe = Join-Path $env:LOCALAPPDATA ('Programs\HyperVControl\' + $runtime.version + '\HyperVControl.exe')
 }
 if (-not (Test-Path -LiteralPath $exe)) {
-    [Console]::Error.WriteLine('Hyper-V Control EXE is not installed. Run this plugin''s scripts\install.ps1, or extract the prebuilt plugin ZIP. No compiler is required.')
-    exit 1
+    # Capture installer output so MCP stdout contains only protocol messages.
+    $ProgressPreference = 'SilentlyContinue'
+    $exe = & (Join-Path $PSScriptRoot 'install.ps1')
 }
 $hashStream = [IO.File]::OpenRead($exe)
 $hasher = [Security.Cryptography.SHA256]::Create()

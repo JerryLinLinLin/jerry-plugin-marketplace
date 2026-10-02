@@ -32,6 +32,6 @@ The separate CLI experiment launches `frida` and `frida-trace` directly and chec
 their real output/generated handlers. On frida-tools 14.10.4 a traced target's
 natural termination yields tool exit 1; that is explicitly checked, not hidden.
 
-See [the retained run report](../../docs/frida-use-validation.md) for the executed
+See [the retained run report](../../docs/validation/frida-use/2026-10-01/report.md) for the executed
 environment, evidence and remaining coverage limits. These results are not part
 of the installed skill's instructional material.

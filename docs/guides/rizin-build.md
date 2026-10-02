@@ -38,20 +38,14 @@ After packaging, extract the archive into a new path with spaces and Unicode and
 ## Packaging
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -Version 0.3.1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1
 ```
 
-This creates a runtime ZIP, complete plugin ZIP, runtime manifest, and SHA256SUMS. The command reproduces the currently locked runtime version. For a new CLI release, increment the bundle version in the lock file and tag the tested source commit with a new `rizin-v<bundle-version>` tag. Other marketplace plugins can use their own tag prefixes.
+This creates only the runtime ZIP, runtime manifest, and SHA256SUMS, plus a verification report when one has been produced separately. Use a clean output directory. The archive excludes marketplace manifests and skills.
 
-Plugin releases are independent of the CLI bundle version. The runtime ZIP uses `bundle.lock.json` and the requested runtime version; the complete plugin ZIP uses the version in `plugins/rizin-re-toolkit/plugin.json`. Skills are included inside the plugin ZIP, with no separate skill archive.
+The runtime version comes from `bundle.lock.json`. For a new runtime release, increment it and tag the tested source commit with `rizin-v<bundle-version>`. Published runtime archives are immutable.
 
-For a skill-only or metadata update, package without rebuilding or republishing the runtime:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -PluginOnly -Version 0.4.1 -OutputDir build\plugin-release-0.4.1
-```
-
-This reproduces the current plugin version locally; do not overwrite its published ZIP. For a new release, bump the plugin version and publish under the matching `rizin-re-toolkit-v<version>` tag. The CLI installer searches release assets for the runtime prefix, so a newer plugin-only release is not mistaken for a runtime download. The native runtime remains at `rizin-v0.3.1` until a separate CLI release is built and tested. Earlier validation reports retain their original plugin IDs and versions as historical evidence.
+Plugin and skill changes ship through the marketplace source under `plugins/rizin-re-toolkit/`; they do not create a separate plugin ZIP or GitHub Release. Earlier validation reports retain their original IDs and versions as historical evidence.
 
 Validate discovery without changing user configuration:
 

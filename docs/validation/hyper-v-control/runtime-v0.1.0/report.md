@@ -38,7 +38,7 @@ Cleanup completed: the VM is Off, Secure Boot was read back as enabled, both COM
 - Live create/remove/import/export, large disk resizing, multi-host management, every guest OS version, and every debugger command/extension were not exhaustively exercised. The local host is the management boundary; unsupported guest services return errors.
 - KD needs a real Windows console even when its streams are redirected. The final backend uses a private hidden console per session and Ctrl+Break scoped to it. The earlier `-wake`/remote-interrupt experiments are not the shipped backend.
 - Symbol download and first attachment can outlast a single call. Pending commands remain in the same session for poll/break; a launched process or successful BCD update is not reported as a verified attachment.
-- No GitHub Release is published by the local build. `scripts/install.ps1` requires the matching published asset; the prebuilt plugin ZIP contains the EXE and works without downloading it.
+- No GitHub Release is published by the local build. Runtime downloads require the matching published asset. Plugin ZIP distribution has been retired in favor of marketplace installation.
 
 ## Review regression checks
 

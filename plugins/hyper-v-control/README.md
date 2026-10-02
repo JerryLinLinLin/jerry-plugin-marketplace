@@ -14,22 +14,22 @@ Manage a Hyper-V lab from your AI agent. Create and restore experiments, interac
 
 Requires a Windows x64 host with Hyper-V. The distributed executable is self-contained and needs no separate .NET or Python installation.
 
-Install **Hyper-V Control** from **Jerry's Plugin Marketplace**, or get a complete plugin ZIP from the [download catalog](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/releases.md#release-index). The ZIP includes the executable and skill. For a marketplace installation, run the plugin's `scripts/install.ps1` to download its verified runtime, then reconnect the MCP.
+Install **Hyper-V Control** from **Jerry's Plugin Marketplace** in Codex. The plugin includes its skill and launcher. On first start, the launcher downloads and verifies the required executable automatically; subsequent starts reuse the installed runtime.
 
-For another stdio MCP client, point its configuration at the executable's absolute path. This example uses the stable filename inside the extracted plugin:
+For another stdio MCP client, download the EXE from the [runtime releases](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/guides/releases.md#release-index) and point its configuration at the executable's absolute path. This example assumes you saved it as `C:\Tools\HyperVControl.exe`:
 
 ```json
 {
   "mcpServers": {
     "hyper-v-control": {
-      "command": "C:\\Tools\\hyper-v-control\\bin\\HyperVControl.exe",
+      "command": "C:\\Tools\\HyperVControl.exe",
       "args": ["--elevate"]
     }
   }
 }
 ```
 
-The standalone EXE is also available from the download catalog; use its downloaded filename in your configuration.
+For an offline machine, use the plugin's `scripts/install.ps1` in your preparation workflow or copy the matching, verified executable into the plugin's `bin` directory before starting it.
 
 ## Permissions and guest setup
 
@@ -41,7 +41,7 @@ Install Microsoft WinDbg separately for debugging. Its modern debugger engine is
 
 ## Development and validation
 
-Build and test from the repository root using the SDK specified by the [release guide](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/releases.md):
+Build and test from the repository root using the SDK specified by the [release guide](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/guides/releases.md):
 
 ```powershell
 ./scripts/build-hyperv-control.ps1
@@ -49,4 +49,4 @@ dotnet run --project tests/HyperVControl.Tests -c Release -- unit .
 dotnet run --project tests/HyperVControl.Tests -c Release -- smoke .
 ```
 
-[Feature inventory](docs/extraction.md) · [Validation and known limits](docs/validation.md) · [Third-party notices](THIRD-PARTY-NOTICES.md)
+[Feature inventory](docs/extraction.md) · [Validation records and known limits](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/README.md#validation-records) · [Third-party notices](THIRD-PARTY-NOTICES.md)
