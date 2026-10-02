@@ -1,8 +1,11 @@
 {
+  "plugin": "hyper-v-control",
   "version": "0.1.0",
+  "tag": "hyper-v-control-v0.1.0",
+  "asset": "hyper-v-control-win-x64-v0.1.0.exe",
   "rid": "win-x64",
   "framework": "net10.0-windows",
   "selfContained": true,
-  "sha256": "77fa50858a7ebcc1ef93410977cfd8d6757749677e3b791c993edfaa257ea553",
-  "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/hyper-v-control-v0.1.0/HyperVControl.exe"
+  "sha256": "c58492c6711e0448b47019092ca47624f0b71f5b3fd762053f13606409cefbc6",
+  "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/hyper-v-control-v0.1.0/hyper-v-control-win-x64-v0.1.0.exe"
 }

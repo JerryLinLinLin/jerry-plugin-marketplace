@@ -12,18 +12,24 @@ if ($Repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') { throw 'Invalid 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ 'User-Agent' = 'rizin-re-toolkit-installer'; 'Accept' = 'application/vnd.github+json' }
 $api = "https://api.github.com/repos/$Repository/releases"
-if ($Tag) {
-    $releases = Invoke-RestMethod -Uri "$api/tags/$([Uri]::EscapeDataString($Tag))" -Headers $headers
-} else {
-    # Other marketplace plugins may release independently; select by asset.
-    $releases = Invoke-RestMethod -Uri "${api}?per_page=100" -Headers $headers
-}
 $assetPattern = '^rizin-windows-x64-bundle-v[0-9][A-Za-z0-9.-]*\.zip$'
-$release = @($releases) | Where-Object {
-    -not $_.draft -and -not $_.prerelease -and
-    @($_.assets | Where-Object { $_.name -match $assetPattern }).Count -eq 1 -and
-    @($_.assets | Where-Object { $_.name -eq 'SHA256SUMS' }).Count -eq 1
-} | Select-Object -First 1
+$page = 1
+while ($true) {
+    if ($Tag) {
+        $releases = Invoke-RestMethod -Uri "$api/tags/$([Uri]::EscapeDataString($Tag))" -Headers $headers
+    } else {
+        # Releases are repository-wide. Keep looking when newer plugins fill a page.
+        $releases = Invoke-RestMethod -Uri "${api}?per_page=100&page=$page" -Headers $headers
+    }
+    $release = @($releases) | Where-Object {
+        -not $_.draft -and -not $_.prerelease -and
+        $_.tag_name -match '^rizin-(?:runtime-)?v\d+\.\d+\.\d+$' -and
+        @($_.assets | Where-Object { $_.name -match $assetPattern }).Count -eq 1 -and
+        @($_.assets | Where-Object { $_.name -eq 'SHA256SUMS' }).Count -eq 1
+    } | Select-Object -First 1
+    if ($release -or $Tag -or @($releases).Count -lt 100) { break }
+    $page++
+}
 if (-not $release) { throw 'No stable Rizin bundle with SHA256SUMS was found. Check the releases page.' }
 $asset = $release.assets | Where-Object { $_.name -match $assetPattern }
 $checksums = $release.assets | Where-Object { $_.name -eq 'SHA256SUMS' }

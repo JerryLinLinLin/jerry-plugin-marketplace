@@ -11,6 +11,12 @@ function Get-RuntimeHash([string]$Path) {
 $pluginRoot = Split-Path -Parent $PSScriptRoot
 $runtime = Get-Content -LiteralPath (Join-Path $pluginRoot 'runtime.json') -Raw | ConvertFrom-Json
 if ($runtime.version -notmatch '^\d+\.\d+\.\d+$' -or $runtime.sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'Invalid pinned runtime manifest.' }
+if ($runtime.plugin -ne 'hyper-v-control' -or $runtime.rid -ne 'win-x64' -or
+    $runtime.tag -ne "hyper-v-control-v$($runtime.version)" -or
+    $runtime.asset -ne "hyper-v-control-win-x64-v$($runtime.version).exe" -or
+    $runtime.url -ne "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/$($runtime.tag)/$($runtime.asset)") {
+    throw 'Runtime manifest does not identify the expected Hyper-V Control release.'
+}
 $root = [IO.Path]::GetFullPath($Destination)
 $install = Join-Path $root $runtime.version
 $exe = Join-Path $install 'HyperVControl.exe'

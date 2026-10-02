@@ -1,3 +1,6 @@
 *.zip filter=lfs diff=lfs merge=lfs -text
 *.patch text eol=lf -whitespace
 *.manifest text eol=lf
+src/HyperVControl/** text eol=lf
+tests/HyperVControl.Tests/** text eol=lf
+plugins/hyper-v-control/** text eol=lf

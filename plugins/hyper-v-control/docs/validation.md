@@ -23,6 +23,8 @@ The designated live target was `Windows 11 AV Test`, a Generation 2 Windows 11 g
 | KDNET | Configuration with generated key, virtual-switch IPv4 and UDP port 50009; real kernel connection, commands, detach, and successful guest command after detach |
 | Skill | Bundled skill creator validator passed |
 | Packaging | Portable plugin and MCP manifests passed their declared official JSON schemas; launcher hash validation and PowerShell parsing passed |
+| Release isolation | Rizin selects its runtime beyond 100 unrelated releases; tag/asset filtering rejects other plugin streams, drafts and prereleases. Hyper-V downloads an exact pinned asset, reuses matching installations and leaves Rizin/PATH intact; corrupt bytes are rejected |
+| Reproducibility | Publishing from a separate checkout path produced the same pinned EXE SHA-256; CI checks the runtime pin after rebuilding with the fixed SDK/runtime |
 | Language | Plugin metadata, skill, documentation, MCP descriptions and implementation messages are English |
 
 Raw local results and screenshots are written under ignored `build/hyperv-control/validation`; guest credentials are never logged. Connection keys in diagnostic results are test data and are invalidated when the baseline is restored. These logs are not packaged into the plugin.
