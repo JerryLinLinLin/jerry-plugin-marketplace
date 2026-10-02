@@ -5,6 +5,7 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 | Plugin | What it provides |
 | --- | --- |
 | [Rizin RE Toolkit](plugins/rizin-re-toolkit) | A portable Windows x64 Rizin CLI, RetDec/Ghidra/jsdec decompilers, YARA, FLIRT, and a skill for native binary and memory-dump analysis. |
+| [Capstone Binary Patching](plugins/capstone-binary-patching) | A uv-managed Capstone/LIEF CLI and skill for binary patches, instruction diffs, patch porting, verification and rollback, with native Windows experiments. |
 | [Frida Use](plugins/frida-use) | Windows-focused live instrumentation, Python/JavaScript debugging, API tracing, malware analysis, reverse engineering, and reversible runtime patching. |
 
 ## Add to Codex
@@ -13,7 +14,11 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 codex plugin marketplace add JerryLinLinLin/jerry-plugin-marketplace --ref main
 ```
 
-Open the plugin directory, select **Jerry's Plugin Marketplace**, and install **Rizin RE Toolkit** and/or **Frida Use**. A normal marketplace clone does not need the build-source submodules. The Rizin CLI is downloaded separately from GitHub Releases when its skill needs it. Frida Use bundles its own skill, scripts, and references; install the Frida runtime in your analysis environment as described in its README.
+Open the plugin directory, select **Jerry's Plugin Marketplace**, and install **Rizin RE Toolkit**, **Capstone Binary Patching**, or **Frida Use** as needed. A normal marketplace clone does not need the build-source submodules. The Rizin CLI is downloaded separately from GitHub Releases when its skill needs it. Frida Use bundles its own skill, scripts, and references; install the Frida runtime in your analysis environment as described in its README.
+
+**Capstone Binary Patching** is a separate skill-and-CLI plugin for patching work; see its
+[setup and experiments](plugins/capstone-binary-patching). Its Python dependencies are managed by uv,
+and it requires no MCP server or account connection.
 
 **Frida Use:** plugin/skill ID `frida-use`, invocation `$frida-use`, version `1.0.0`. Its full source is vendored under `plugins/frida-use`; it has no dependency on the former standalone project. See its [research notes](plugins/frida-use/skills/frida-use/references/research-sources.md). Maintainer experiments and results live separately in [scripts/frida-use-experiments](scripts/frida-use-experiments) and [docs/frida-use-validation.md](docs/frida-use-validation.md).
 
