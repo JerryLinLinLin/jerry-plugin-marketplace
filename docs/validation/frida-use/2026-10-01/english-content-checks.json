@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-01",
+  "scope": "All plugin files under plugins/",
+  "plugins": [
+    "frida-use",
+    "rizin-re-toolkit"
+  ],
+  "text_files_scanned": 65,
+  "chinese_character_matches": 0,
+  "maintained_local_links_checked": 48,
+  "manifests_valid": true,
+  "imported_files_unchanged": 31,
+  "runtime_scripts_match_experiment_hashes": true,
+  "note": "Documentation-only update after the recorded runtime experiments. The original artifact-hashes.json remains an immutable record of the tested snapshot.",
+  "updated_content_sha256": {
+    "plugins/frida-use/README.md": "f7800be6db351ddd5863cf24d4b86b53a2cdb8d68db235e89e284673550122e9",
+    "plugins/frida-use/skills/frida-use/references/research-sources.md": "aba2ebe66b1b196e118d43f2694328d3ae98784b5e31902d6cb75ede91137d5a",
+    "plugins/frida-use/skills/frida-use/references/windows-debugging.md": "863abcef6962777cd01026e529314a621dc955ed3e86a02b691a0f8a9637ed29",
+    "plugins/frida-use/skills/frida-use/SKILL.md": "2f0e6b45a4214ea75ffa191202a7b3fd289cff40c284cbac82fe072641cf3e3f",
+    "plugins/rizin-re-toolkit/skills/rizin-re-toolkit/SKILL.md": "0a85c922cdc49cd74f4a083c979b7d6583bd8215f51b9f5fd5b172169aa5e2eb"
+  }
+}

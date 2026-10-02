@@ -1,0 +1,20 @@
+{
+  "name": "frida-windows-re",
+  "version": "0.2.0",
+  "description": "Instrument and analyze Windows processes dynamically with Frida.",
+  "author": {
+    "name": "JerryLinLinLin",
+    "url": "https://github.com/JerryLinLinLin"
+  },
+  "homepage": "https://github.com/JerryLinLinLin/frida-windows-skills",
+  "repository": "https://github.com/JerryLinLinLin/frida-windows-skills",
+  "license": "MIT",
+  "keywords": [
+    "frida",
+    "dynamic-analysis",
+    "instrumentation",
+    "windows"
+  ],
+  "category": "Security",
+  "skills": "./skills/"
+}
