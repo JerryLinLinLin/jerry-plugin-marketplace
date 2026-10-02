@@ -41,7 +41,7 @@
     "retdec": {
       "version": "5.0",
       "commit": "8272d0355794f8b8a63d8611b1dea50b4f2d87c3",
-      "sdk": "Verified v0.1.0 bundle SDK, same upstream revision"
+      "sdk": "Verified RetDec SDK asset from rizin-v0.3.1, same upstream revision"
     },
     "yara": {
       "version": "4.5.8",
@@ -59,9 +59,9 @@
       "sha256": "45ffa004e26653eaee8d262b8e6eeae09402a7d319c1f20a2ba794bd6af1cc28"
     },
     "retdecSdk": {
-      "file": "rizin-windows-x64-bundle-v0.1.0.zip",
-      "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/v0.1.0/rizin-windows-x64-bundle-v0.1.0.zip",
-      "sha256": "66be7b2708e773b16e6318c68ec8aa25b7ba331b5eed1b444942f0a31b8c50ba"
+      "file": "rizin-retdec-sdk-win-x64-v0.3.1.zip",
+      "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/rizin-v0.3.1/rizin-retdec-sdk-win-x64-v0.3.1.zip",
+      "sha256": "bdd8b176be07b3146d91f5b487ebbeaede2f1149953572d3dc741d4aab90919b"
     },
     "openssl3": {
       "file": "openssl-3.5.9.zip",

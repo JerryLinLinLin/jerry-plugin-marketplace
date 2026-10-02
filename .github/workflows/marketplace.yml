@@ -1,0 +1,65 @@
+name: Marketplace CI
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: marketplace-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    outputs:
+      windows: ${{ steps.plan.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check marketplace contracts
+        run: python scripts/check-marketplace.py
+      - name: Validate complete plugin packaging
+        run: python scripts/test-plugin-packaging.py
+      - name: Select component validation
+        id: plan
+        run: python scripts/ci-plan.py
+  windows:
+    needs: catalog
+    if: needs.catalog.outputs.windows == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.401'
+          cache: true
+          cache-dependency-path: src/HyperVControl/packages.lock.json
+      - name: Build self-contained EXE and plugin
+        shell: pwsh
+        run: ./scripts/build-hyperv-control.ps1
+      - name: Verify pinned runtime reproducibility
+        shell: pwsh
+        run: git diff --exit-code -- plugins/hyper-v-control/runtime.json
+      - name: Unit and stdio protocol validation
+        shell: pwsh
+        run: |
+          dotnet run --project tests/HyperVControl.Tests -c Release -- unit $PWD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project tests/HyperVControl.Tests -c Release -- smoke $PWD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/test-release-isolation.ps1
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: hyper-v-control-win-x64
+          if-no-files-found: error
+          path: |
+            build/hyperv-control/release/hyper-v-control-win-x64-v*.exe
+            build/hyperv-control/release/hyper-v-control-plugin-v*-win-x64.zip
+            build/hyperv-control/release/hyper-v-control-v*-release.json
+            build/hyperv-control/release/hyper-v-control-v*-SHA256SUMS.txt

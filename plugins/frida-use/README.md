@@ -50,9 +50,9 @@ The default agent observes file opens and records at most 200 events. Select a c
 The runner writes UTF-8 `events.jsonl` and binary attachments with SHA-256 hashes. Capture duration defaults to 30 seconds. It records dropped events, truncation, JavaScript errors, available Windows exit codes, and Frida crash information.
 `--kill-on-exit` applies only to a process spawned by the runner. Attach mode detaches on exit.
 
-## Version scope
+## Scope
 
-Documentation reviewed on **2026-10-01**, using **Frida 17.19.0 / frida-tools 14.10.4** as reference versions. The two packages have independent version numbers. Check the installed versions and release notes when using a different release.
+Frida and frida-tools have independent release cycles. Use the [setup guide](skills/frida-use/references/setup.md) to check your installed environment and the upstream release notes for compatibility changes.
 Windows user-mode x86/x64 is the main focus. Check ARM64, remote server/Gadget, Barebone, managed runtimes, and third-party GUI capabilities separately.
 
 ## License
