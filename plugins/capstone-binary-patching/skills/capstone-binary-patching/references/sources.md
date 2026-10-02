@@ -50,5 +50,5 @@ also requires checking the installed version and implementation.
 - [Unicorn 2.1.4](https://pypi.org/project/unicorn/2.1.4/): CPU emulator used in experiments.
 
 Consult the plugin's `experiments/` directory and repository report
-`docs/validation-capstone-binary-patching-v0.1.0.md` for local execution results. Listing an
+`docs/validation/capstone-binary-patching/plugin-v0.1.0/report.md` for local execution results. Listing an
 optional tool here does not mean it was installed or tested on this host.

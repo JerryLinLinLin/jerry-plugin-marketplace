@@ -33,8 +33,13 @@ def check(sync=False):
     require(len(names) == len(set(names)), "Marketplace plugin names must be unique")
     folders = {path.name for path in (ROOT / "plugins").iterdir() if path.is_dir()}
     require(set(names) == folders, "Marketplace entries must match the directories under plugins/")
-    documents = [ROOT / path for path in ("README.md", "CONTRIBUTING.md", "docs/build.md", "docs/releases.md")]
+    documents = [ROOT / "README.md", ROOT / "CONTRIBUTING.md"] + sorted((ROOT / "docs").rglob("*.md"))
+    require({path.name for path in (ROOT / "docs").iterdir() if path.is_file()} == {"README.md"},
+            "docs/ root must contain only README.md; place documents under guides/, reference/, or validation/")
+    require({path.name for path in (ROOT / "docs").iterdir() if path.is_dir()} <= {"guides", "reference", "validation"},
+            "Unexpected docs/ directory; follow the documentation index")
     readmes = [ROOT / "README.md"]
+    repository_urls = set()
 
     for entry in catalog["plugins"]:
         name = entry["name"]
@@ -45,6 +50,8 @@ def check(sync=False):
         if not plugin.is_dir():
             continue
         manifest = read_json(plugin / "plugin.json")
+        if manifest.get("repository"):
+            repository_urls.add(manifest["repository"].rstrip("/") + "/blob/main/")
         require(manifest["name"] == name, f"{name}: manifest identity mismatch")
         require(bool(SEMVER.fullmatch(manifest["version"])), f"{name}: invalid semantic version")
         expected = compatibility_manifest(manifest)
@@ -92,12 +99,12 @@ def check(sync=False):
 
     # Existing native version literals remain part of the published binary identity.
     # Catch partial version bumps without rewriting an already released executable.
-    hyperv_version = read_json(ROOT / "plugins/hyper-v-control/plugin.json")["version"]
+    hyperv_version = read_json(ROOT / "plugins/hyper-v-control/runtime.json")["version"]
     project = ET.parse(ROOT / "src/HyperVControl/HyperVControl.csproj")
-    require(project.findtext(".//Version") == hyperv_version, "Hyper-V project and plugin versions disagree")
+    require(project.findtext(".//Version") == hyperv_version, "Hyper-V project and runtime versions disagree")
     program = (ROOT / "src/HyperVControl/Program.cs").read_text(encoding="utf-8-sig")
     for literal in re.findall(r'(?:Hyper-V Control |Version = ")(\d+\.\d+\.\d+)', program):
-        require(literal == hyperv_version, "Hyper-V CLI/protocol version disagrees with its plugin")
+        require(literal == hyperv_version, "Hyper-V CLI/protocol version disagrees with its runtime pin")
 
     for readme in readmes:
         content = readme.read_text(encoding="utf-8-sig")
@@ -108,6 +115,12 @@ def check(sync=False):
         content = document.read_text(encoding="utf-8-sig")
         for link in re.findall(r"\[[^\]\n]+\]\(([^)\n]+)\)", content):
             url = urlsplit(link.strip("<>"))
+            own_prefix = next((prefix for prefix in repository_urls if link.startswith(prefix)), None)
+            if own_prefix:
+                relative = unquote(urlsplit(link[len(own_prefix):]).path)
+                target = (ROOT / relative).resolve()
+                require(target.is_relative_to(ROOT) and target.exists(), f"{document.relative_to(ROOT)}: broken repository link {link}")
+                continue
             if url.scheme or url.netloc or not url.path:
                 continue
             target = (document.parent / unquote(url.path)).resolve()

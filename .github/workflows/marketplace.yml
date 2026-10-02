@@ -22,8 +22,8 @@ jobs:
           python-version: '3.12'
       - name: Check marketplace contracts
         run: python scripts/check-marketplace.py
-      - name: Validate complete plugin packaging
-        run: python scripts/test-plugin-packaging.py
+      - name: Validate runtime packaging
+        run: python scripts/test-runtime-packaging.py
       - name: Select component validation
         id: plan
         run: python scripts/ci-plan.py
@@ -38,12 +38,16 @@ jobs:
           dotnet-version: '10.0.401'
           cache: true
           cache-dependency-path: src/HyperVControl/packages.lock.json
-      - name: Build self-contained EXE and plugin
+      - name: Build self-contained runtime
         shell: pwsh
         run: ./scripts/build-hyperv-control.ps1
       - name: Verify pinned runtime reproducibility
         shell: pwsh
-        run: git diff --exit-code -- plugins/hyper-v-control/runtime.json
+        run: |
+          git diff --exit-code -- plugins/hyper-v-control/runtime.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/test-runtime-packaging.py --hyperv-release build/hyperv-control/runtime-release
+          exit $LASTEXITCODE
       - name: Unit and stdio protocol validation
         shell: pwsh
         run: |
@@ -52,6 +56,7 @@ jobs:
           dotnet run --project tests/HyperVControl.Tests -c Release -- smoke $PWD
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./scripts/test-release-isolation.ps1
+          ./scripts/test-hyperv-launcher.ps1
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
@@ -59,7 +64,7 @@ jobs:
           name: hyper-v-control-win-x64
           if-no-files-found: error
           path: |
-            build/hyperv-control/release/hyper-v-control-win-x64-v*.exe
-            build/hyperv-control/release/hyper-v-control-plugin-v*-win-x64.zip
-            build/hyperv-control/release/hyper-v-control-v*-release.json
-            build/hyperv-control/release/hyper-v-control-v*-SHA256SUMS.txt
+            build/hyperv-control/runtime-release/hyper-v-control-win-x64-v*.exe
+            build/hyperv-control/runtime-release/hyper-v-control-v*-NOTICES.txt
+            build/hyperv-control/runtime-release/hyper-v-control-v*-release.json
+            build/hyperv-control/runtime-release/hyper-v-control-v*-SHA256SUMS.txt

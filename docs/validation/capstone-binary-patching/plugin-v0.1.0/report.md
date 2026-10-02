@@ -1,6 +1,6 @@
 # Capstone Binary Patching 0.1.0: Local Validation
 
-Validation date: 2026-10-01. Plugin: [Capstone Binary Patching](../plugins/capstone-binary-patching).
+Validation date: 2026-10-01. Plugin: [Capstone Binary Patching](../../../../plugins/capstone-binary-patching).
 This record comes from local compilation, execution and real CLI invocations. Behavior
 validation was performed against actual artifacts and CPU emulation.
 
@@ -25,7 +25,7 @@ uv python install --no-bin --no-registry 3.13
 uv run --managed-python --locked --python 3.13 '.\plugins\capstone-binary-patching\experiments\run_experiments.py' --out '.\build\capstone-experiments\new-run'
 ```
 
-The [experiment harness](../plugins/capstone-binary-patching/experiments/run_experiments.py)
+The [experiment harness](../../../../plugins/capstone-binary-patching/experiments/run_experiments.py)
 invokes the plugin's actual CLI entry point. Base and experiment scripts have separate uv
 locks; the optional Keystone dependency is supplied through a version-pinned `--with`.
 The first two rounds also exercised uv environments using an existing CPython 3.13.15
@@ -33,7 +33,7 @@ installation. The final round explicitly used uv-managed Python.
 
 ## Native Windows program execution
 
-MSVC compiled the EXE locally from [fixture.c](../plugins/capstone-binary-patching/experiments/fixture.c).
+MSVC compiled the EXE locally from [fixture.c](../../../../plugins/capstone-binary-patching/experiments/fixture.c).
 A locally generated Kernel32 import library provides console output and process exit; no test
 EXE was downloaded. The exported `patch_target` supplies the function RVA. The CLI maps its
 VA to a file offset, decodes with Capstone, assembles replacement bytes with Keystone, creates
@@ -90,9 +90,9 @@ patched files retained their hashes.
 
 Complete local records:
 
-- [summary.json](../build/capstone-experiments/run-03/summary.json): group results, actual versions, interpreter paths and implementation hashes.
-- [transcript.jsonl](../build/capstone-experiments/run-03/transcript.jsonl): argv, stdout, stderr and exit codes for 98 commands.
-- [pe-plan.json](../build/capstone-experiments/run-03/pe-plan.json): the actual patch plan and before/after instructions.
+- `build/capstone-experiments/run-03/summary.json`: group results, actual versions, interpreter paths and implementation hashes.
+- `build/capstone-experiments/run-03/transcript.jsonl`: argv, stdout, stderr and exit codes for 98 commands.
+- `build/capstone-experiments/run-03/pe-plan.json`: the actual patch plan and before/after instructions.
 
 The `build/` artifacts remain on this machine; binaries and caches are not committed. The
 reproduction harness and this report are retained in source control.

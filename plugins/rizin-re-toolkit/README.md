@@ -15,7 +15,7 @@ Install **Rizin RE Toolkit** from **Jerry's Plugin Marketplace** in Codex. The i
 
 The [PowerShell installer](skills/rizin-re-toolkit/scripts/install.ps1) downloads and verifies the runtime into a user-writable directory. It supports a custom destination and optional user PATH registration.
 
-For manual installation, use the [download catalog](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/releases.md#release-index), verify the archive checksum, and extract the complete `rizin` folder. Run `rizin\bin\rizin.exe` by absolute path. Keep the folder together when moving it; required runtime libraries and support data are included.
+For manual installation, use the [download catalog](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/guides/releases.md#release-index), verify the archive checksum, and extract the complete `rizin` folder. Run `rizin\bin\rizin.exe` by absolute path. Keep the folder together when moving it; required runtime libraries and support data are included.
 
 ## Use
 
@@ -33,6 +33,6 @@ This plugin uses Rizin and its bundled analysis engines. Tool-specific project f
 
 ## More information
 
-[Agent workflow](skills/rizin-re-toolkit/SKILL.md) · [Build guide](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/build.md) · [Releases and component versions](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/releases.md)
+[Agent workflow](skills/rizin-re-toolkit/SKILL.md) · [Build guide](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/guides/rizin-build.md) · [Releases and component versions](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/guides/releases.md)
 
 Plugin code and instructions use the MIT license. Runtime components retain their own licenses, included with the bundle.

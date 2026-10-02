@@ -1,6 +1,6 @@
 {
   "name": "hyper-v-control",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Control Hyper-V VMs, graphical consoles, guest automation and user/kernel debugging through a native C# stdio MCP server.",
   "author": {
     "name": "JerryLinLinLin",

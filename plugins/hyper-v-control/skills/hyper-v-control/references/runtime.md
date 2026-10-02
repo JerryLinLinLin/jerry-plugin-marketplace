@@ -1,6 +1,6 @@
 # Runtime and permissions
 
-The prebuilt plugin ZIP contains `bin/HyperVControl.exe`. A source-only marketplace install uses `scripts/install.ps1` to download the version/checksum pinned in `runtime.json`; then reconnect the MCP. The release must exist before this download path works. Development builds use the repository build script, never a Python MCP server.
+Install the plugin through the marketplace. Its launcher invokes `scripts/install.ps1` when the required executable is missing, downloads the exact runtime pinned in `runtime.json`, verifies its checksum, and then starts the MCP. Later starts reuse that installation. A development or offline installation may supply a matching `bin/HyperVControl.exe`. Plugin and runtime versions are independent; a launcher or skill update does not require a new native executable.
 
 The launcher verifies the EXE hash and starts `--elevate`. The parent keeps MCP stdin/stdout; a same-user worker receives them over a private named pipe. Only the current Windows user's SID has access, and both ends verify process IDs. UAC consent can appear once when a split-token administrator starts it. Cancellation is an error with no VM mutation. Do not disable UAC or grant permanent group membership to make a call work.
 

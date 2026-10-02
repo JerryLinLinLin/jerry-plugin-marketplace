@@ -10,6 +10,7 @@ WINDOWS_PREFIXES = ("src/HyperVControl/", "tests/HyperVControl.Tests/", "plugins
 WINDOWS_FILES = {
     ".gitattributes", "HyperVControl.slnx", "scripts/ci-plan.py",
     "scripts/build-hyperv-control.ps1", "scripts/test-installer.ps1", "scripts/test-release-isolation.ps1",
+    "scripts/test-hyperv-launcher.ps1", "scripts/test-runtime-packaging.py",
     "plugins/rizin-re-toolkit/skills/rizin-re-toolkit/scripts/install.ps1",
 }
 
