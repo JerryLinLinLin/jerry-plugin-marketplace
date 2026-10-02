@@ -1,46 +1,47 @@
 # Hyper-V Control
 
-A Windows x64 C# MCP server over standard input/output for Hyper-V lifecycle, checkpoints, graphical guest control, file transfer and user/kernel debugging. The distributed `HyperVControl.exe` is self-contained: end users need neither Python nor a .NET SDK/runtime installation.
+Manage a Hyper-V lab from your AI agent. Create and restore experiments, interact with guest desktops, move files, and investigate Windows applications or the kernel through one MCP connection.
 
-## Run
+## What it helps with
 
-Get the [Windows x64 EXE](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/hyper-v-control-v0.1.0/hyper-v-control-win-x64-v0.1.0.exe) or [complete plugin ZIP](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/hyper-v-control-v0.1.0/hyper-v-control-plugin-v0.1.0-win-x64.zip) from [release 0.1.0](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/hyper-v-control-v0.1.0). The release includes a namespaced checksum file and machine-readable asset inventory. It shares no release tag or installation directory with Rizin.
+- **VM management:** create, configure, start, stop, clone, import, and export virtual machines; manage disks and networking.
+- **Repeatable experiments:** inspect checkpoint trees, save a known state, and restore it after testing.
+- **Desktop interaction:** use Basic or Enhanced Session, capture screenshots, send mouse and keyboard input, and work with guest UI Automation.
+- **Guest automation:** run commands and processes, transfer files and folders, and manage reusable credentials.
+- **Debugging:** use persistent application and kernel debugger sessions, including KDNET and named-pipe connections.
 
-Extract the prebuilt plugin ZIP and install this plugin from the marketplace/local plugin directory. It contains `bin/HyperVControl.exe`, manifests, launcher and `$hyper-v-control` skill. A source-only marketplace installation can run `scripts/install.ps1` after the matching release has been published; downloads are pinned by SHA-256 in `runtime.json`.
+## Install and connect
 
-For any stdio MCP client:
+Requires a Windows x64 host with Hyper-V. The distributed executable is self-contained and needs no separate .NET or Python installation.
+
+Install **Hyper-V Control** from **Jerry's Plugin Marketplace**, or get a complete plugin ZIP from the [download catalog](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/releases.md#release-index). The ZIP includes the executable and skill. For a marketplace installation, run the plugin's `scripts/install.ps1` to download its verified runtime, then reconnect the MCP.
+
+For another stdio MCP client, point its configuration at the executable's absolute path. This example uses the stable filename inside the extracted plugin:
 
 ```json
 {
   "mcpServers": {
     "hyper-v-control": {
-      "command": "C:\\Tools\\HyperVControl\\hyper-v-control-win-x64-v0.1.0.exe",
+      "command": "C:\\Tools\\hyper-v-control\\bin\\HyperVControl.exe",
       "args": ["--elevate"]
     }
   }
 }
 ```
 
-`--elevate` keeps the parent connected to the MCP client and opens a same-user elevated worker over a protected named pipe. The client itself need not be elevated. With UAC enabled, Windows may request consent; cancellation exits without operating on VMs. With sufficient existing privileges, the EXE can run without this option. Alternate-user UAC credentials are intentionally rejected by the same-user boundary. See the [permission model](skills/hyper-v-control/references/runtime.md).
+The standalone EXE is also available from the download catalog; use its downloaded filename in your configuration.
 
-## Capabilities
+## Permissions and guest setup
 
-- VM inventory, create/configure/remove, power states, import/export/clone, virtual switches and adapters, VHD/ISO operations, Secure Boot.
-- Checkpoint tree/current-parent discovery, create, restore, rename and delete.
-- Basic and Enhanced Session consoles using Hyper-V RDP ActiveX; native framebuffer screenshots in Basic, guarded screen capture in Enhanced; keyboard/chords/text, pointer/buttons/scroll/drag, Enhanced clipboard.
-- Credential Manager profiles; PowerShell Direct commands and processes with exit codes, timeouts and separate output streams; bidirectional files and folders, directory listing and bounded binary reads.
-- Microsoft's winapp guest UI Automation through an interactive scheduled task.
-- KDNET and two-phase named-pipe KDCOM configuration with checked `bcdedit` results.
-- Persistent KD/CDB sessions: commands, break, poll, detach; symbols, memory, registers, stacks, breakpoints, stepping and dump analysis through normal debugger commands.
-- Persistent in-guest CDB workers over PowerShell Direct, without guest networking or a second MCP server.
+With `--elevate`, Windows requests administrator approval once when needed. Subsequent operations use the same elevated worker until the MCP session ends. The MCP client can stay unelevated. UAC cancellation exits without operating on VMs; alternate-user elevation is unsupported. See the [permission model](skills/hyper-v-control/references/runtime.md).
 
-Use `hyperv_capabilities` to inspect the actual environment. Windows guests need credentials for PowerShell Direct; semantic UI also needs an unlocked interactive desktop. Basic console can control boot and non-Windows guests without PowerShell Direct. Enhanced requires guest support and host policy. Host management is local; the graphical guest sessions are remote through Hyper-V, not through an HTTP MCP listener.
+Run `hyperv_capabilities` to inspect the host and available integrations. Windows guest automation needs credentials for PowerShell Direct. UI Automation needs an unlocked interactive guest desktop; Enhanced Session needs guest support and host policy. Basic Session can interact with boot screens and guests without PowerShell Direct.
 
-Current Microsoft WinDbg is preferred. Set `HYPERV_CONTROL_DEBUGGER_DIR` to the complete `amd64` directory to select an engine explicitly. Modern MSIX packages are discovered ahead of legacy Windows Kits. The EXE returns the path and version used. Downloading the MCP EXE does not implicitly install WinDbg or alter Secure Boot, BitLocker, firewall or UAC policy.
+Install Microsoft WinDbg separately for debugging. Its modern debugger engine is preferred; `HYPERV_CONTROL_DEBUGGER_DIR` can select an explicit debugger directory. See the [agent workflow](skills/hyper-v-control/SKILL.md) for task-specific setup and checkpoint guidance.
 
-## Build and validate
+## Development and validation
 
-From the repository root with .NET 10 SDK:
+Build and test from the repository root using the SDK specified by the [release guide](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/releases.md):
 
 ```powershell
 ./scripts/build-hyperv-control.ps1
@@ -48,6 +49,4 @@ dotnet run --project tests/HyperVControl.Tests -c Release -- unit .
 dotnet run --project tests/HyperVControl.Tests -c Release -- smoke .
 ```
 
-The build creates the namespaced EXE, complete plugin ZIP, `hyper-v-control-v0.1.0-release.json` and `hyper-v-control-v0.1.0-SHA256SUMS.txt` under `build/hyperv-control/release`. Local `HyperVControl.exe` and `SHA256SUMS` aliases are for development only. Source lives under `src/HyperVControl`, independent of the Rizin plugin. Runtime binaries/build caches remain outside Git. The [extraction inventory](docs/extraction.md) maps RaivenX and reference-MCP features to their implementations. The [validation report](docs/validation.md) distinguishes measured results from untested environments.
-
-See [source/runtime notices](THIRD-PARTY-NOTICES.md). Release publication is separate from building local artifacts.
+[Feature inventory](docs/extraction.md) · [Validation and known limits](docs/validation.md) · [Third-party notices](THIRD-PARTY-NOTICES.md)

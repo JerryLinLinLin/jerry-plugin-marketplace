@@ -17,7 +17,7 @@ The build verifies source revisions, applies patches once, hash-checks downloads
 
 YARA is checked out sparsely before materializing files, excluding its antivirus-sensitive fuzz corpus. No antivirus exclusion or protection change is needed. Avoid recursively checking out that separate Meson dependency's test corpus.
 
-RetDec's upstream SDK revision is unchanged. The hash-locked SDK from release v0.1.0 is reused while core_retdec.dll is rebuilt for Rizin 0.9.1. VS 2026 is needed to link that SDK. OpenSSL 1.1.1w remains its ABI dependency; YARA uses OpenSSL 3.5.9 LTS.
+RetDec's upstream SDK revision is unchanged. The hash-locked `rizin-retdec-sdk-win-x64-v0.3.1.zip` asset contains the headers, libraries, CMake files, support data, and licenses needed to rebuild core_retdec.dll for Rizin 0.9.1. These files were preserved byte-for-byte from the former v0.1.0 bundle; `sdk-provenance.json` records their origin. The SDK is downloaded from the retained `rizin-v0.3.1` release into `build/retdec-sdk`, so a clean build does not depend on deleted releases. VS 2026 is needed to link that SDK. OpenSSL 1.1.1w remains its ABI dependency; YARA uses OpenSSL 3.5.9 LTS.
 
 ## Verification
 
@@ -41,17 +41,17 @@ After packaging, extract the archive into a new path with spaces and Unicode and
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -Version 0.3.1
 ```
 
-This creates a runtime ZIP, plugin ZIP, standalone skill package, and SHA256SUMS. The command reproduces the currently locked runtime version. For a new CLI release, increment the bundle version in the lock file and tag the tested source commit with a new `rizin-v<bundle-version>` tag. Other marketplace plugins can use their own tag prefixes.
+This creates a runtime ZIP, complete plugin ZIP, runtime manifest, and SHA256SUMS. The command reproduces the currently locked runtime version. For a new CLI release, increment the bundle version in the lock file and tag the tested source commit with a new `rizin-v<bundle-version>` tag. Other marketplace plugins can use their own tag prefixes.
 
 Plugin releases are independent of the CLI bundle version. The runtime ZIP uses `bundle.lock.json` and the requested runtime version; the complete plugin ZIP uses the version in `plugins/rizin-re-toolkit/plugin.json`. Skills are included inside the plugin ZIP, with no separate skill archive.
 
 For a skill-only or metadata update, package without rebuilding or republishing the runtime:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -PluginOnly -Version 0.4.0 -OutputDir build\plugin-release-0.4.0
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -PluginOnly -Version 0.4.1 -OutputDir build\plugin-release-0.4.1
 ```
 
-Publish those files under `rizin-re-toolkit-v0.4.0`. The CLI installer searches release assets for the runtime prefix, so a newer plugin-only release is not mistaken for a runtime download. The native runtime remains at `rizin-v0.3.1` until a separate CLI release is built and tested. Earlier validation reports retain their original plugin IDs and versions as historical evidence.
+This reproduces the current plugin version locally; do not overwrite its published ZIP. For a new release, bump the plugin version and publish under the matching `rizin-re-toolkit-v<version>` tag. The CLI installer searches release assets for the runtime prefix, so a newer plugin-only release is not mistaken for a runtime download. The native runtime remains at `rizin-v0.3.1` until a separate CLI release is built and tested. Earlier validation reports retain their original plugin IDs and versions as historical evidence.
 
 Validate discovery without changing user configuration:
 

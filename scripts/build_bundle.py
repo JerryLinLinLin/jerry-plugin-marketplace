@@ -83,7 +83,7 @@ def prepare():
     if not PREFIX.exists():
         extract_zip(inputs['rizin'], BUILD / 'upstream')
         shutil.copytree(BUILD / 'upstream/rizin-win-installer-clang_cl-64', PREFIX)
-    for key, directory in [('retdecSdk', 'previous'), ('openssl3', 'openssl-3.5.9'), ('openssl11', 'openssl-1.1.1w')]:
+    for key, directory in [('retdecSdk', 'retdec-sdk'), ('openssl3', 'openssl-3.5.9'), ('openssl11', 'openssl-1.1.1w')]:
         destination = BUILD / directory
         if not destination.exists():
             extract_zip(inputs[key], destination)
@@ -111,7 +111,7 @@ def build(jobs):
         '-DZLIB_USE_STATIC_LIBS=ON', '-DBUILD_CUTTER_PLUGIN=OFF'])
     openssl11 = BUILD / 'openssl-1.1.1w/openssl-1.1/x64'
     cmake('rz-retdec', ROOT / 'sources/rz-retdec', [
-        f'-DCMAKE_PREFIX_PATH={PREFIX.as_posix()};{(BUILD / "previous/rizin").as_posix()};{openssl11.as_posix()}',
+        f'-DCMAKE_PREFIX_PATH={PREFIX.as_posix()};{(BUILD / "retdec-sdk/rizin").as_posix()};{openssl11.as_posix()}',
         f'-DCMAKE_INSTALL_PREFIX={PREFIX.as_posix()}', f'-DOPENSSL_ROOT_DIR={openssl11.as_posix()}',
         '-DBUILD_BUNDLED_RETDEC=OFF', '-DBUILD_CUTTER_PLUGIN=OFF', '-DRZ_RETDEC_DOC=OFF'])
     os.environ['CMAKE_PREFIX_PATH'] = str(PREFIX) + ';' + str(BUILD / 'openssl-3.5.9/x64')
@@ -134,7 +134,7 @@ def build(jobs):
     crt = next(redist.glob('Microsoft.VC*.CRT'))
     for path in crt.glob('*.dll'):
         shutil.copy2(path, PREFIX / 'bin' / path.name)
-    copy_tree(BUILD / 'previous/rizin/lib/rizin/plugins/support', PREFIX / 'lib/rizin/plugins/support')
+    copy_tree(BUILD / 'retdec-sdk/rizin/lib/rizin/plugins/support', PREFIX / 'lib/rizin/plugins/support')
     copy_tree(ROOT / 'sources/sigdb', PREFIX / 'share/sigdb')
 
 
@@ -173,7 +173,7 @@ def assemble():
         (BUILD / 'openssl-1.1.1w/openssl-1.1/LICENSE', 'openssl-1.1.1w/LICENSE'),
         (BUILD / 'deps/zlib-1.3.2/LICENSE', 'zlib/LICENSE'),
     ]
-    for path in (BUILD / 'previous/rizin/share/retdec').glob('LICENSE*'):
+    for path in (BUILD / 'retdec-sdk/rizin/share/retdec').glob('LICENSE*'):
         notices.append((path, 'retdec/' + path.name))
     for source, relative in notices:
         dest = licenses / relative
