@@ -1,0 +1,17 @@
+Spawning `C:\Users\jerry\.codex\worktrees\5200\rizin-win64-bundle\build\frida-use-fixtures\x64\fixture.exe C:\Users\jerry\.codex\worktrees\5200\rizin-win64-bundle\build\frida-cli-run-02\x64-trace\cli.bin 1`...
+Instrumenting...
+ReadFile: Auto-generated handler at "C:\Users\jerry\.codex\worktrees\5200\rizin-win64-bundle\build\frida-cli-run-02\x64-trace\__handlers__\KERNELBASE.dll\ReadFile.js"
+pid=111672 score=12
+Started tracing 1 function. Web UI available at http://localhost:None/
+Tip: Luma, the official Frida app, has frida-trace built in — with a Monaco handler editor and instruction-level tracing you can diff across runs. https://luma.frida.re/
+           /* TID 0x2270 */
+   157 ms  ReadFile()
+   269 ms  ReadFile()
+   379 ms  ReadFile()
+   488 ms  ReadFile()
+   599 ms  ReadFile()
+   709 ms  ReadFile()
+   819 ms  ReadFile()
+   928 ms  ReadFile()
+  1037 ms  ReadFile()
+Process terminated

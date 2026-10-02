@@ -1,0 +1,46 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "frida-use",
+  "version": "1.0.0",
+  "description": "Debug, instrument, reverse engineer, and patch running programs with Frida, primarily on Windows.",
+  "author": {
+    "name": "JerryLinLinLin",
+    "url": "https://github.com/JerryLinLinLin"
+  },
+  "homepage": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "frida",
+    "debugging",
+    "windows",
+    "python",
+    "instrumentation",
+    "reverse-engineering",
+    "malware-analysis",
+    "patching"
+  ],
+  "extensions": {
+    "com.openai": {
+      "skills": "./skills/",
+      "interface": {
+        "displayName": "Frida Use",
+        "shortDescription": "Windows debugging and instrumentation with Frida.",
+        "longDescription": "Windows-focused Frida workflows for debugging Python controllers, injected JavaScript and native targets; API tracing, malware analysis, reverse engineering, and reversible runtime patching. Includes executable helpers, practical examples, and Chinese/English research notes.",
+        "developerName": "JerryLinLinLin",
+        "category": "Security",
+        "capabilities": [
+          "Read",
+          "Write",
+          "Execute"
+        ],
+        "websiteURL": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+        "brandColor": "#EF6456",
+        "logo": "./assets/icon.svg",
+        "defaultPrompt": [
+          "Use Frida Use to debug this Windows process and write a reproducible instrumentation script."
+        ]
+      }
+    }
+  }
+}

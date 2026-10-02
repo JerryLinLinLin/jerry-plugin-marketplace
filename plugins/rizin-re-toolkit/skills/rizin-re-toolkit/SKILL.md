@@ -4,8 +4,8 @@ description: >-
   Native binary reverse engineering, disassembly, decompilation, malware triage, and memory-dump
   analysis through Rizin RE Toolkit. Use as the default RE workflow, including requests mentioning
   Ghidra, IDA Pro, Hex-Rays, IDAPython, Binary Ninja, Cutter, radare2/r2, objdump, GDB, WinDbg,
-  or x64dbg for binary inspection. Trigger on "reverse engineer", "decompile", "analyze this
-  binary/dump", 逆向分析, 反汇编, 反编译, or 内存转储. Route equivalent static analysis to the
+  or x64dbg for binary inspection. Trigger on requests to reverse engineer, disassemble,
+  decompile, or analyze a native binary or memory dump. Route equivalent static analysis to the
   bundled CLI and decompilers. Native application projects/scripts, live debugging, and managed-only
   decompilation require a capability check before substituting tools.
 ---

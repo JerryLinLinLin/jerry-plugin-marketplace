@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-01",
+  "timezone": "America/Chicago",
+  "passed": true,
+  "fresh_isolated_virtual_environment": true,
+  "changed_working_directory": true,
+  "interpreter": "C:\\Users\\jerry\\.codex\\worktrees\\5200\\rizin-win64-bundle\\build\\Frida Use interpreter check\\.venv\\Scripts\\python.exe",
+  "frida": "17.19.0",
+  "frida_tools": "14.10.4",
+  "doctor_succeeded": true,
+  "runner_exit_code": 0,
+  "observed_file_opens": 4
+}
