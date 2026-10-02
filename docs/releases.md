@@ -60,7 +60,7 @@ hyper-v-control-v0.1.0-SHA256SUMS.txt
 
 The ZIP contains the EXE, manifests, skill, documentation, launcher, installer, and licenses. The EXE-only download is for direct stdio MCP configuration. Local convenience aliases (`HyperVControl.exe`, `SHA256SUMS`) are not additional public Hyper-V assets. The inventory records primary asset names, roles, platforms, sizes and hashes; the checksum file also covers the inventory and does not hash itself.
 
-Rizin RE Toolkit 0.4.1 is an installer-only maintenance release; its runtime remains 0.3.1. Its download page provides the complete plugin ZIP, namespaced asset inventory and namespaced checksum file. The existing `rizin-v0.3.1` runtime release is left untouched. Future Rizin runtime releases retain the existing runtime asset family and legacy `SHA256SUMS` while older runtime installers are supported; plugin-only releases do not need that compatibility alias.
+Rizin RE Toolkit 0.4.1 is an installer-only maintenance release; its runtime remains 0.3.1. Its installation package is the complete plugin ZIP. The release also provides a namespaced asset inventory/checksum file and retains its existing `SHA256SUMS` URL for compatibility. The existing `rizin-v0.3.1` runtime release is left untouched. Future Rizin runtime releases retain the existing runtime asset family and legacy `SHA256SUMS` while older runtime installers are supported; new plugin-only releases use the namespaced checksum filename.
 
 ## Validation
 
