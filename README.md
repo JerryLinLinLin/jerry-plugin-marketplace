@@ -5,6 +5,7 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 | Plugin | What it provides |
 | --- | --- |
 | [Rizin RE Toolkit](plugins/rizin-re-toolkit) | A portable Windows x64 Rizin CLI, RetDec/Ghidra/jsdec decompilers, YARA, FLIRT, and a skill for native binary and memory-dump analysis. |
+| [Frida Use](plugins/frida-use) | Windows-focused live instrumentation, Python/JavaScript debugging, API tracing, malware analysis, reverse engineering, and reversible runtime patching. |
 
 ## Add to Codex
 
@@ -12,9 +13,11 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 codex plugin marketplace add JerryLinLinLin/jerry-plugin-marketplace --ref main
 ```
 
-Open the plugin directory, select **Jerry's Plugin Marketplace**, and install **Rizin RE Toolkit**. A normal marketplace clone does not need the build-source submodules. The CLI is downloaded separately from GitHub Releases when the skill needs it.
+Open the plugin directory, select **Jerry's Plugin Marketplace**, and install **Rizin RE Toolkit** and/or **Frida Use**. A normal marketplace clone does not need the build-source submodules. The Rizin CLI is downloaded separately from GitHub Releases when its skill needs it. Frida Use bundles its own skill, scripts, and references; install the Frida runtime in your analysis environment as described in its README.
 
-The plugin and skill IDs are both `rizin-re-toolkit`; invoke the skill explicitly as `$rizin-re-toolkit`. Automatic skill selection is enabled. Native RE requests mentioning Ghidra, IDA/Hex-Rays, Binary Ninja, Cutter, radare2, and related tools route to the toolkit's equivalent CLI workflow by default. Ghidra requests use its bundled `pdg` engine. Native application projects, tool-specific development, and unsupported debugging workflows receive a capability check rather than a claim of compatibility.
+**Frida Use:** plugin/skill ID `frida-use`, invocation `$frida-use`, version `1.0.0`. Its full source is vendored under `plugins/frida-use`; it has no dependency on the former standalone project. See its [research notes](plugins/frida-use/skills/frida-use/references/research-sources.md). Maintainer experiments and results live separately in [scripts/frida-use-experiments](scripts/frida-use-experiments) and [docs/frida-use-validation.md](docs/frida-use-validation.md).
+
+**Rizin RE Toolkit:** plugin/skill ID `rizin-re-toolkit`, invocation `$rizin-re-toolkit`. Automatic skill selection is enabled. Native RE requests mentioning Ghidra, IDA/Hex-Rays, Binary Ninja, Cutter, radare2, and related tools route to the toolkit's equivalent CLI workflow by default. Ghidra requests use its bundled `pdg` engine. Native application projects, tool-specific development, and unsupported debugging workflows receive a capability check rather than a claim of compatibility.
 
 **Upgrading from Rizin Windows RE:** refresh the marketplace (`codex plugin marketplace upgrade my-plugin-marketplace`), install **Rizin RE Toolkit**, and remove the old **Rizin Windows RE** installation if present. The old ID `rizin-windows-re` has been replaced; an installed copy is not automatically renamed. The marketplace ID remains `my-plugin-marketplace`.
 
@@ -35,6 +38,10 @@ Windows 10 (1903+) or Windows 11 x64 is required. Runtime DLLs are included besi
 For a user-level install, run the plugin's [download helper](plugins/rizin-re-toolkit/skills/rizin-re-toolkit/scripts/install.ps1). It selects a stable Rizin asset, verifies its checksum, and extracts to `%LOCALAPPDATA%\Programs\Rizin\<tag>`. `-AddToUserPath` optionally adds its `bin` directory to the user's PATH.
 
 ## Add another plugin
+
+Write all plugin content in English, including documentation, skill instructions,
+metadata, script comments, and bundled references. Summarize sources in English
+and use English link labels even when the original source is in another language.
 
 1. Create `plugins/<plugin-name>/plugin.json` and `skills/<skill-name>/SKILL.md` within that folder. Keep referenced assets and scripts inside the plugin.
 2. Add its entry to `.agents/plugins/marketplace.json`, using `source.path: ./plugins/<plugin-name>`, a category, and installation/authentication policies.
