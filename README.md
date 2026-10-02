@@ -5,6 +5,7 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 | Plugin | What it provides |
 | --- | --- |
 | [Rizin RE Toolkit](plugins/rizin-re-toolkit) | A portable Windows x64 Rizin CLI, RetDec/Ghidra/jsdec decompilers, YARA, FLIRT, and a skill for native binary and memory-dump analysis. |
+| [Capstone Binary Patching](plugins/capstone-binary-patching) | A uv-managed Capstone/LIEF CLI and skill for binary patches, instruction diffs, patch porting, verification and rollback, with native Windows experiments. |
 
 ## Add to Codex
 
@@ -13,6 +14,10 @@ codex plugin marketplace add JerryLinLinLin/jerry-plugin-marketplace --ref main
 ```
 
 Open the plugin directory, select **Jerry's Plugin Marketplace**, and install **Rizin RE Toolkit**. A normal marketplace clone does not need the build-source submodules. The CLI is downloaded separately from GitHub Releases when the skill needs it.
+
+**Capstone Binary Patching** is a separate skill-and-CLI plugin for patching work; see its
+[setup and experiments](plugins/capstone-binary-patching). Its Python dependencies are managed by uv,
+and it requires no MCP server or account connection.
 
 The plugin and skill IDs are both `rizin-re-toolkit`; invoke the skill explicitly as `$rizin-re-toolkit`. Automatic skill selection is enabled. Native RE requests mentioning Ghidra, IDA/Hex-Rays, Binary Ninja, Cutter, radare2, and related tools route to the toolkit's equivalent CLI workflow by default. Ghidra requests use its bundled `pdg` engine. Native application projects, tool-specific development, and unsupported debugging workflows receive a capability check rather than a claim of compatibility.
 

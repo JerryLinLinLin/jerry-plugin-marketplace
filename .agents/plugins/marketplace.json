@@ -7,6 +7,12 @@
       "source": {"source": "local", "path": "./plugins/rizin-re-toolkit"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
       "category": "Security"
+    },
+    {
+      "name": "capstone-binary-patching",
+      "source": {"source": "local", "path": "./plugins/capstone-binary-patching"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Security"
     }
   ]
 }
