@@ -36,7 +36,7 @@ The catalog is [.agents/plugins/marketplace.json](.agents/plugins/marketplace.js
 | Component | Release | What to download |
 | --- | --- | --- |
 | Hyper-V Control | [0.1.0](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/hyper-v-control-v0.1.0) | Namespaced Windows x64 EXE or complete plugin ZIP |
-| Rizin RE Toolkit plugin/skill | [0.4.1](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.1) | Plugin ZIP or skill; includes the isolated, paginated runtime installer |
+| Rizin RE Toolkit | [0.4.1](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.1) | Complete plugin ZIP with its skill and isolated, paginated runtime installer |
 | Rizin portable runtime | [0.3.1](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-v0.3.1) | Existing runtime bundle and its unchanged `SHA256SUMS` |
 
 Use the [release organization guide](docs/releases.md) for tag/asset naming, per-plugin checksum pins, independent runtime versions and publication steps. Installers do not use the repository-wide Latest release to select a plugin. Existing Rizin URLs remain compatible.

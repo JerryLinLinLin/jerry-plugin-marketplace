@@ -43,7 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package-bundle.ps1 -
 
 This creates a runtime ZIP, plugin ZIP, standalone skill package, and SHA256SUMS. The command reproduces the currently locked runtime version. For a new CLI release, increment the bundle version in the lock file and tag the tested source commit with a new `rizin-v<bundle-version>` tag. Other marketplace plugins can use their own tag prefixes.
 
-Plugin/skill releases are now independent of the CLI bundle version. The runtime ZIP uses `bundle.lock.json` and the requested runtime version; plugin/skill filenames use the version in `plugins/rizin-re-toolkit/plugin.json`.
+Plugin releases are independent of the CLI bundle version. The runtime ZIP uses `bundle.lock.json` and the requested runtime version; the complete plugin ZIP uses the version in `plugins/rizin-re-toolkit/plugin.json`. Skills are included inside the plugin ZIP, with no separate skill archive.
 
 For a skill-only or metadata update, package without rebuilding or republishing the runtime:
 

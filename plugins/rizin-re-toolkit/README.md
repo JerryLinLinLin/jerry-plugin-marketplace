@@ -21,7 +21,7 @@ Install **Rizin RE Toolkit** from **Jerry's Plugin Marketplace** in Codex. The [
 
 The skill automatically applies to ordinary RE requests, including tasks phrased with Ghidra, IDA Pro/Hex-Rays, Binary Ninja, Cutter, radare2, or related tool names. Equivalent work uses the Rizin CLI; Ghidra decompilation uses bundled `pdg`, while general/IDA-style PE analysis starts with Rizin triage and `pdz`. The skill reports the actual engine used and checks native-project or unsupported-tool requirements before substituting workflows.
 
-Download the independent [plugin and skill packages](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.1) if needed. The runtime continues to use the verified `rizin-v0.3.1` release. If the former `rizin-windows-re` plugin is installed, refresh the marketplace, install the new plugin, and remove the old installation to avoid duplicate skills.
+Download the [complete plugin ZIP](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.1) if needed; its skill is included and needs no separate download. The runtime continues to use the verified `rizin-v0.3.1` release. If the former `rizin-windows-re` plugin is installed, refresh the marketplace, install the new plugin, and remove the old installation to avoid duplicate skills.
 
 The [PowerShell installer](skills/rizin-re-toolkit/scripts/install.ps1) supports a user-level install, an explicit destination, a fixed release tag, and optional user PATH registration. It verifies SHA-256 before running the extracted CLI. The large runtime is a separate release asset.
 

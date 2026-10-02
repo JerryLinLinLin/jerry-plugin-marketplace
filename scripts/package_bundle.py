@@ -1,4 +1,4 @@
-"""Package the runtime and independently versioned plugin/skill artifacts."""
+"""Package the runtime and complete plugin archives, including their skills."""
 import argparse
 import hashlib
 import json
@@ -8,6 +8,11 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def sha256(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
 def archive(source, output, include_root=False):
@@ -52,10 +57,7 @@ def main():
         if manifest['bundleVersion'] != args.version:
             raise RuntimeError('Runtime and requested versions disagree')
         packages.append((runtime, f'rizin-windows-x64-bundle-v{args.version}.zip', True))
-    packages.extend([
-        (plugin, f'rizin-re-toolkit-plugin-v{plugin_version}.zip', False),
-        (plugin / 'skills/rizin-re-toolkit', f'rizin-re-toolkit-v{plugin_version}.skill', True),
-    ])
+    packages.append((plugin, f'rizin-re-toolkit-plugin-v{plugin_version}.zip', False))
     output.mkdir(parents=True, exist_ok=True)
     artifacts = []
     for folder, name, root in packages:
@@ -71,8 +73,30 @@ def main():
         evidence = output / 'verification.json'
         if evidence.is_file():
             artifacts.append(evidence)
-    sums = ''.join(f'{hashlib.file_digest(file.open("rb"), "sha256").hexdigest()}  {file.name}\n' for file in artifacts)
-    (output / 'SHA256SUMS').write_text(sums, encoding='ascii')
+    if args.plugin_only:
+        tag = f'rizin-re-toolkit-v{plugin_version}'
+        # A reused build directory may still contain the former duplicate export.
+        (output / f'{tag}.skill').unlink(missing_ok=True)
+        runtime_version = json.loads((ROOT / 'bundle.lock.json').read_text(encoding='utf-8-sig'))['bundleVersion']
+        inventory = {
+            'schemaVersion': 1,
+            'repository': 'JerryLinLinLin/jerry-plugin-marketplace',
+            'plugin': 'rizin-re-toolkit', 'version': plugin_version, 'tag': tag,
+            'runtimeTag': f'rizin-v{runtime_version}',
+            'assets': [
+                {'name': file.name, 'kind': 'plugin', 'sha256': sha256(file), 'size': file.stat().st_size}
+                for file in artifacts
+            ],
+        }
+        inventory_path = output / f'{tag}-release.json'
+        inventory_path.write_text(json.dumps(inventory, indent=2) + '\n', encoding='utf-8')
+        artifacts.append(inventory_path)
+        checksum_name = f'{tag}-SHA256SUMS.txt'
+    else:
+        # Existing runtime installers require this legacy filename.
+        checksum_name = 'SHA256SUMS'
+    sums = ''.join(f'{sha256(file)}  {file.name}\n' for file in artifacts)
+    (output / checksum_name).write_text(sums, encoding='ascii')
 
 
 if __name__ == '__main__':
