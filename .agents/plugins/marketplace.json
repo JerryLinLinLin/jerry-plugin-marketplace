@@ -7,6 +7,12 @@
       "source": {"source": "local", "path": "./plugins/rizin-re-toolkit"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
       "category": "Security"
+    },
+    {
+      "name": "hyper-v-control",
+      "source": {"source": "local", "path": "./plugins/hyper-v-control"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Developer Tools"
     }
   ]
 }

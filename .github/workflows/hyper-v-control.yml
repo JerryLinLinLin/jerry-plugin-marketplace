@@ -1,0 +1,31 @@
+name: Hyper-V Control
+on:
+  push:
+    paths: ['src/HyperVControl/**', 'tests/HyperVControl.Tests/**', 'plugins/hyper-v-control/**', 'scripts/build-hyperv-control.ps1', '.github/workflows/hyper-v-control.yml']
+  pull_request:
+    paths: ['src/HyperVControl/**', 'tests/HyperVControl.Tests/**', 'plugins/hyper-v-control/**', 'scripts/build-hyperv-control.ps1', '.github/workflows/hyper-v-control.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build self-contained EXE and plugin
+        shell: pwsh
+        run: ./scripts/build-hyperv-control.ps1
+      - name: Unit and stdio protocol validation
+        shell: pwsh
+        run: |
+          dotnet run --project tests/HyperVControl.Tests -c Release -- unit $PWD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project tests/HyperVControl.Tests -c Release -- smoke $PWD
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hyper-v-control-win-x64
+          path: build/hyperv-control/release/

@@ -1,0 +1,8 @@
+{
+  "version": "0.1.0",
+  "rid": "win-x64",
+  "framework": "net10.0-windows",
+  "selfContained": true,
+  "sha256": "77fa50858a7ebcc1ef93410977cfd8d6757749677e3b791c993edfaa257ea553",
+  "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/hyper-v-control-v0.1.0/HyperVControl.exe"
+}

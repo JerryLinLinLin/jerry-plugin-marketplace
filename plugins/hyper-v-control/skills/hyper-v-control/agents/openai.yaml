@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyper-V Control"
+  short_description: "Manage, automate, and debug Hyper-V virtual machines."
+  default_prompt: "Use $hyper-v-control to manage or debug a Hyper-V VM with the appropriate control channel."

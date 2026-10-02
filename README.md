@@ -5,6 +5,7 @@ A personal Codex plugin marketplace. Each plugin lives in its own folder, so thi
 | Plugin | What it provides |
 | --- | --- |
 | [Rizin RE Toolkit](plugins/rizin-re-toolkit) | A portable Windows x64 Rizin CLI, RetDec/Ghidra/jsdec decompilers, YARA, FLIRT, and a skill for native binary and memory-dump analysis. |
+| [Hyper-V Control](plugins/hyper-v-control) | A compiled C# stdio MCP EXE and skill for VM lifecycle, checkpoints, Basic/Enhanced computer use, guest files/UI, and user/kernel debugging. |
 
 ## Add to Codex
 
@@ -44,6 +45,8 @@ For a user-level install, run the plugin's [download helper](plugins/rizin-re-to
 Rizin includes a portable Agent Plugins manifest and a `.codex-plugin/plugin.json` compatibility manifest. It is a CLI-and-skill plugin and needs no MCP server or account connection.
 
 ## Build and verification
+
+This is a plugin monorepo. Hyper-V Control's C# source is under `src/HyperVControl`, its protocol/live validation harness under `tests/HyperVControl.Tests`, and its distributable plugin under `plugins/hyper-v-control`. Build its self-contained EXE and plugin ZIP with `scripts/build-hyperv-control.ps1`; see [Hyper-V Control](plugins/hyper-v-control/README.md) for runtime setup and [feature extraction](plugins/hyper-v-control/docs/extraction.md).
 
 See [the build guide](docs/build.md), [component lock file](bundle.lock.json), and [release validation](docs/validation-v0.3.1.md). Build sources are pinned under `sources/`; Windows compatibility patches live under `patches/`. Generated files stay in the ignored `build/` directory.
 

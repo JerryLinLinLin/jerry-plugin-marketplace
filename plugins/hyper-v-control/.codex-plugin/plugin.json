@@ -1,0 +1,15 @@
+{
+  "name": "hyper-v-control",
+  "version": "0.1.0",
+  "description": "Hyper-V lifecycle, graphical guest control, and Windows debugging with a compiled C# stdio MCP.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Hyper-V Control",
+    "shortDescription": "VM lifecycle, computer use, and Windows debugging.",
+    "developerName": "JerryLinLinLin",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write", "Execute"],
+    "logo": "./assets/icon.svg"
+  }
+}
