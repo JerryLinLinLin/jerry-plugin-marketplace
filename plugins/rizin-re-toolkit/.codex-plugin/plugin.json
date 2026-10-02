@@ -1,6 +1,6 @@
 {
   "name": "rizin-re-toolkit",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Default native reverse engineering and dump analysis toolkit, routing Ghidra/IDA-style workflows through portable Rizin.",
   "author": {
     "name": "JerryLinLinLin",

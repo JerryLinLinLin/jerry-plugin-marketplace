@@ -1,6 +1,6 @@
 # Rizin RE Toolkit
 
-A portable Windows x64 CLI and Codex skill serving as the default entrypoint for native binary and memory-dump analysis. Plugin/skill version: **0.4.0**. Plugin ID and skill invocation: `rizin-re-toolkit` / `$rizin-re-toolkit`.
+A portable Windows x64 CLI and Codex skill serving as the default entrypoint for native binary and memory-dump analysis. Plugin/skill version: **0.4.1**. Plugin ID and skill invocation: `rizin-re-toolkit` / `$rizin-re-toolkit`.
 
 Download the runtime ZIP and SHA256SUMS from [release rizin-v0.3.1](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-v0.3.1), verify the archive hash, and extract the whole rizin folder. Run `rizin\bin\rizin.exe -v` by absolute path, or add its bin directory to the current process PATH. Non-system runtime DLLs are included. Windows 10 (1903+) or Windows 11 x64 is required; administrator installation is unnecessary.
 
@@ -21,7 +21,7 @@ Install **Rizin RE Toolkit** from **Jerry's Plugin Marketplace** in Codex. The [
 
 The skill automatically applies to ordinary RE requests, including tasks phrased with Ghidra, IDA Pro/Hex-Rays, Binary Ninja, Cutter, radare2, or related tool names. Equivalent work uses the Rizin CLI; Ghidra decompilation uses bundled `pdg`, while general/IDA-style PE analysis starts with Rizin triage and `pdz`. The skill reports the actual engine used and checks native-project or unsupported-tool requirements before substituting workflows.
 
-Download the independent [plugin and skill packages](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.0) if needed. The runtime continues to use the verified `rizin-v0.3.1` release. If the former `rizin-windows-re` plugin is installed, refresh the marketplace, install the new plugin, and remove the old installation to avoid duplicate skills.
+Download the independent [plugin and skill packages](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-re-toolkit-v0.4.1) if needed. The runtime continues to use the verified `rizin-v0.3.1` release. If the former `rizin-windows-re` plugin is installed, refresh the marketplace, install the new plugin, and remove the old installation to avoid duplicate skills.
 
 The [PowerShell installer](skills/rizin-re-toolkit/scripts/install.ps1) supports a user-level install, an explicit destination, a fixed release tag, and optional user PATH registration. It verifies SHA-256 before running the extracted CLI. The large runtime is a separate release asset.
 
@@ -46,3 +46,7 @@ Use a real function/address instead of assuming a main symbol exists. For dumps,
 - VC++ runtime DLLs ship beside the executables. YARA uses OpenSSL 3.5.9; the unchanged upstream RetDec SDK requires legacy OpenSSL 1.1.1w, included separately.
 
 The runtime includes licenses/ and THIRD-PARTY.md. The plugin/skill is MIT; redistributed components retain their own licenses.
+
+## Installer maintenance in 0.4.1
+
+Runtime discovery now checks the Rizin tag family and asset name together and paginates past unrelated plugin releases. Drafts and prereleases are skipped. Hyper-V Control uses an exact tagged EXE and a separate installation directory. The Rizin 0.3.1 runtime assets and existing download URLs are unchanged.

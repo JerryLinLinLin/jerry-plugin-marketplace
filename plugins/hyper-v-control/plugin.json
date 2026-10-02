@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hyper-v-control",
+  "version": "0.1.0",
+  "description": "Control Hyper-V VMs, graphical consoles, guest automation and user/kernel debugging through a native C# stdio MCP server.",
+  "author": {"name": "JerryLinLinLin", "url": "https://github.com/JerryLinLinLin"},
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": ["hyper-v", "windows", "virtual-machine", "debugger", "windbg", "mcp"],
+  "extensions": {
+    "com.openai": {
+      "skills": "./skills/",
+      "mcpServers": "./.mcp.json",
+      "interface": {
+        "displayName": "Hyper-V Control",
+        "shortDescription": "VM lifecycle, computer use, and Windows debugging.",
+        "longDescription": "A compiled Windows x64 C# MCP server over stdio. Manage VM lifecycle and checkpoints, operate Basic and Enhanced consoles, transfer files, automate guest UI with winapp, and debug user processes or a guest kernel with current WinDbg engines.",
+        "developerName": "JerryLinLinLin",
+        "category": "Developer Tools",
+        "capabilities": ["Read", "Write", "Execute"],
+        "logo": "./assets/icon.svg",
+        "brandColor": "#1674D1",
+        "defaultPrompt": ["Use Hyper-V Control to inspect my VMs and choose the right management, automation, or debugging workflow."]
+      }
+    }
+  }
+}
