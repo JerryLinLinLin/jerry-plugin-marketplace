@@ -24,7 +24,8 @@ phrased in terms of other RE tools. Treat those tool names as descriptions of
 the desired capability and perform equivalent work through Rizin. For supported
 tasks, do not install, launch, or delegate to standalone Ghidra, IDA/Hex-Rays,
 Binary Ninja, Cutter, radare2, or another RE tool as the default workflow.
-Download the verified CLI below when it is missing, then continue the analysis.
+Locate an existing CLI using the local checks below; download the verified bundle
+only when no usable local installation is available, then continue the analysis.
 
 | Request | Route inside this toolkit |
 | --- | --- |
@@ -48,23 +49,68 @@ here. If not, explain the specific missing capability and request the necessary
 input or follow a later explicit instruction requiring the native tool.
 Do not silently discard project-specific state or fabricate compatibility.
 
-## Install the dependency
+## Locate or install the dependency
 
-Use an existing verified bundle when available. Otherwise run the bundled
-[installer](scripts/install.ps1) with PowerShell on Windows:
+On Windows, the default installation root is `%LOCALAPPDATA%\Programs\Rizin`.
+Each release lives in its own directory; the executable is
+`%LOCALAPPDATA%\Programs\Rizin\<release-tag>\rizin\bin\rizin.exe`.
+Installing the skill does not itself install the runtime or register it in PATH.
+
+Before contacting GitHub or running the installer, look locally in this order:
+
+1. A user-specified or previously verified executable path, including a known custom
+   `-Destination` installation.
+2. The default installation root above. Check release directories for
+   `rizin\bin\rizin.exe`; prefer the newest compatible installed version, comparing
+   version numbers rather than directory names alphabetically.
+3. `rizin.exe` already on PATH, using `Get-Command -CommandType Application`.
+
+For the default-directory and PATH checks:
 
 ```powershell
-& '<this-skill-directory>\scripts\install.ps1'
+$rizinInstallRoot = Join-Path $env:LOCALAPPDATA 'Programs\Rizin'
+$rizinCandidates = @(
+    Get-ChildItem -LiteralPath $rizinInstallRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^rizin-(?:runtime-)?v\d+\.\d+\.\d+$' } |
+        Sort-Object { [version] ($_.Name -replace '^rizin-(?:runtime-)?v', '') } -Descending |
+        ForEach-Object { Join-Path $_.FullName 'rizin\bin\rizin.exe' } |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+    Get-Command rizin.exe -CommandType Application -All -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Source
+)
+$rizinCandidates | Select-Object -Unique
+```
+
+Validate candidates with `-v`, the bundle manifest one directory above `bin`
+(`rizin\bundle-manifest.json`), and the plugin help needed for the task
+(`pdg?`, `pdd?`, `pdz?`, `yara?`). Reuse a
+compatible working bundle and retain its absolute executable path as `$rizinExe`.
+An empty PATH lookup does not mean Rizin is uninstalled. Do not download or query
+the latest release merely because an existing bundle is absent from PATH or older
+than the latest release; update only when requested or required for the task.
+
+Only if no usable local installation is found, run the bundled
+[installer](scripts/install.ps1) with PowerShell:
+
+```powershell
+$rizinInstall = & '<this-skill-directory>\scripts\install.ps1'
+$rizinExe = $rizinInstall.Executable
+& $rizinExe -v
 ```
 
 The installer finds the newest stable Rizin bundle among the repository's
 [GitHub releases](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases), verifies
 `SHA256SUMS` and the GitHub asset digest when available, then extracts into
 `%LOCALAPPDATA%\Programs\Rizin\<release-tag>\rizin`. It returns the executable path and
-adds `bin` to the current PowerShell process's `PATH`. Shell tool processes may not share
-environment changes: retain the returned absolute executable path for subsequent calls.
+adds `bin` to the current PowerShell process's `PATH` by default; it does not persist
+that change to the user or system PATH. Shell tool processes may not share environment
+changes or variables: use the resolved absolute executable path in subsequent calls
+(`& 'C:\...\rizin\bin\rizin.exe' ...`), even when later examples say `rizin`.
 Use `-Destination <directory>` for a workspace-local install, `-Tag rizin-v0.3.1` for the
 tested release, or `-AddToUserPath` when the user wants a persistent user PATH entry.
+The installer queries releases before checking the destination and refuses to overwrite
+an existing release directory, so use the local checks above instead of rerunning it
+to locate an installation.
 No administrator privileges or separate VC++ runtime installation are required.
 Use Windows 10 version 1903 or later (including Windows 11), x64. The CLI's
 UTF-8 application manifest enables Unicode installation and input paths.
