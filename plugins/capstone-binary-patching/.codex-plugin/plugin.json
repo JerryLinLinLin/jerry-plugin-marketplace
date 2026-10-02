@@ -1,0 +1,21 @@
+{
+  "name": "capstone-binary-patching",
+  "version": "0.1.0",
+  "description": "Instruction-aware binary patching, diffs and rollback through a uv-managed Capstone CLI and focused workflows.",
+  "author": {"name": "JerryLinLinLin", "url": "https://github.com/JerryLinLinLin"},
+  "homepage": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": ["capstone", "binary-patching", "binary-diff", "keystone", "lief", "firmware", "uv"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Capstone Binary Patching",
+    "shortDescription": "Build, diff, verify and reverse binary patches.",
+    "longDescription": "A skill and CLI for native binary patch construction, instruction-aware diffs, patch porting and rollback. Uses uv-managed Capstone and LIEF with optional Keystone assembly. Includes PE, ELF, Mach-O, firmware and analysis-copy workflows, hash-bound patch plans, and reproducible native Windows experiments. No MCP server or account connection.",
+    "developerName": "JerryLinLinLin",
+    "category": "Security",
+    "capabilities": ["Read", "Write", "Execute"],
+    "websiteURL": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+    "defaultPrompt": ["Use Capstone Binary Patching to create and validate a reversible binary patch."]
+  }
+}
