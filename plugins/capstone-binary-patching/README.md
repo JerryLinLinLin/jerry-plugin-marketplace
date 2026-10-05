@@ -13,9 +13,9 @@ Capstone decodes instructions, LIEF interprets executable mappings, and optional
 
 ## Install and use
 
-Install **Capstone Binary Patching** from **Jerry's Plugin Marketplace** and follow the [setup guide](skills/capstone-binary-patching/references/setup.md). Python and dependencies are managed with **uv**; no MCP server or account connection is required.
+Install **Capstone Binary Patching** from **Jerry's Plugin Marketplace** in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). Follow the [setup guide](skills/capstone-binary-patching/references/setup.md). Python and dependencies are managed with **uv**; no MCP server or account connection is required.
 
-Invoke `$capstone-binary-patching`, or ask your agent to inspect a proposed patch. For direct CLI use:
+Invoke `$capstone-binary-patching` in Codex or `/capstone-binary-patching:capstone-binary-patching` in Claude Code, or ask your agent to inspect a proposed patch. For direct CLI use:
 
 ```powershell
 $patchCli = 'C:\path\to\capstone-binary-patching\skills\capstone-binary-patching\scripts\patchkit.py'

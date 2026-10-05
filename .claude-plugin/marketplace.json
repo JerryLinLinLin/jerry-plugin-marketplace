@@ -1,0 +1,35 @@
+{
+  "name": "my-plugin-marketplace",
+  "owner": {
+    "name": "JerryLinLinLin"
+  },
+  "metadata": {
+    "description": "Windows reverse engineering and automation for AI agents."
+  },
+  "plugins": [
+    {
+      "name": "rizin-re-toolkit",
+      "source": "./plugins/rizin-re-toolkit",
+      "description": "Default native reverse engineering and dump analysis toolkit, routing Ghidra/IDA-style workflows through portable Rizin.",
+      "category": "Security"
+    },
+    {
+      "name": "capstone-binary-patching",
+      "source": "./plugins/capstone-binary-patching",
+      "description": "Instruction-aware binary patching, diffs and rollback through a uv-managed Capstone CLI and focused workflows.",
+      "category": "Security"
+    },
+    {
+      "name": "frida-use",
+      "source": "./plugins/frida-use",
+      "description": "Debug, instrument, reverse engineer, and patch running programs with Frida, primarily on Windows.",
+      "category": "Security"
+    },
+    {
+      "name": "hyper-v-control",
+      "source": "./plugins/hyper-v-control",
+      "description": "Control Hyper-V VMs, graphical consoles, guest automation and user/kernel debugging through a native C# stdio MCP server.",
+      "category": "Developer Tools"
+    }
+  ]
+}

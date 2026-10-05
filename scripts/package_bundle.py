@@ -42,7 +42,7 @@ def main():
     manifest = json.loads((runtime / 'bundle-manifest.json').read_text(encoding='utf-8-sig'))
     if manifest['bundleVersion'] != args.version:
         raise RuntimeError('Runtime and requested versions disagree')
-    if any((runtime / name).exists() for name in ('skills', 'plugin.json', '.codex-plugin', '.mcp.json', 'mcp.json')):
+    if any((runtime / name).exists() for name in ('skills', 'plugin.json', '.codex-plugin', '.claude-plugin', '.mcp.json', 'mcp.json')):
         raise RuntimeError('Runtime contains plugin files; reassemble it without marketplace content')
     name = f'rizin-windows-x64-bundle-v{args.version}.zip'
     output.mkdir(parents=True, exist_ok=True)

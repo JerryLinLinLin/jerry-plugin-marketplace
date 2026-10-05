@@ -9,7 +9,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${CLAUDE_PLUGIN_ROOT}/scripts/start.ps1"
+        "${PLUGIN_ROOT}/scripts/start.ps1"
       ]
     }
   }

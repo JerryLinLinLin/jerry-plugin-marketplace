@@ -1,8 +1,8 @@
 # Runtime releases
 
-Install plugins through **Jerry's Plugin Marketplace** in Codex. The marketplace distributes their manifests, skills, launchers, and setup helpers. GitHub Releases distribute native runtimes and their supporting notices, checksums, and build metadata. Do not publish plugin ZIPs or standalone skill files.
+Install plugins through **Jerry's Plugin Marketplace** in Codex or Claude Code using the [installation guide](../../README.md#install). The marketplace distributes their manifests, skills, launchers, and setup helpers. GitHub Releases distribute native runtimes and their supporting notices, checksums, and build metadata. Do not publish plugin ZIPs or standalone skill files.
 
-This repository uses the [official marketplace installation workflow](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli).
+This repository supports the [Codex marketplace workflow](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli) and [Claude Code marketplace workflow](https://code.claude.com/docs/en/plugin-marketplaces).
 
 ## Release index
 
@@ -15,7 +15,7 @@ Frida and Capstone dependencies are installed by their plugin setup workflows. T
 
 ## Versions and installation
 
-Plugin versions live in `plugins/<id>/plugin.json`. Native runtime versions are independent: Hyper-V records its executable pin in `runtime.json`, and Rizin records its runtime/build inputs in `bundle.lock.json`. A launcher or skill update can ship through the marketplace without rebuilding an unchanged executable.
+Plugin versions live in `plugins/<id>/plugin.json`. Run `python scripts/check-marketplace.py --sync` after changing them to update both clients' generated manifests. Native runtime versions are independent: Hyper-V records its executable pin in `runtime.json`, and Rizin records its runtime/build inputs in `bundle.lock.json`. A launcher or skill update can ship through the marketplace without rebuilding an unchanged executable.
 
 Hyper-V's launcher downloads and verifies a missing runtime before starting the MCP. Rizin's skill invokes its verified runtime installer when needed. Each component uses its own versioned installation directory. Never use the repository-wide Latest release to resolve a runtime: pin an exact asset, or filter and paginate within the intended runtime stream.
 

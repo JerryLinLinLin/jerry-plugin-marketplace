@@ -1,0 +1,23 @@
+{
+  "name": "frida-use",
+  "version": "1.0.0",
+  "description": "Debug, instrument, reverse engineer, and patch running programs with Frida, primarily on Windows.",
+  "author": {
+    "name": "JerryLinLinLin",
+    "url": "https://github.com/JerryLinLinLin"
+  },
+  "homepage": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "frida",
+    "debugging",
+    "windows",
+    "python",
+    "instrumentation",
+    "reverse-engineering",
+    "malware-analysis",
+    "patching"
+  ],
+  "skills": "./skills/"
+}
