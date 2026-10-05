@@ -6,7 +6,8 @@ Each plugin is an independent product installed through the marketplace. Keep it
 
 | Location | Responsibility |
 | --- | --- |
-| `.agents/plugins/marketplace.json` | Discovery catalog: plugin IDs, locations, and categories |
+| `.agents/plugins/marketplace.json` | Canonical discovery catalog and Codex entrypoint: plugin IDs, locations, and categories |
+| `.claude-plugin/marketplace.json` | Generated Claude Code discovery catalog |
 | `plugins/<id>/` | Installable package: manifest, skill, user documentation, helpers, and licenses |
 | `src/<Product>/` | Native application or MCP implementation; currently Hyper-V Control |
 | `tests/<Product>.Tests/` | Native protocol and behavior validation |
@@ -21,7 +22,8 @@ Within Hyper-V Control, `HyperVTools*` exposes the MCP contract, `Services/` own
 
 ## Sources of truth
 
-- Edit `plugins/<id>/plugin.json` for plugin identity, version, and interface metadata. Run `python scripts/check-marketplace.py --sync` to generate `.codex-plugin/plugin.json`; do not maintain the compatibility copy independently.
+- Edit `plugins/<id>/plugin.json` for plugin identity, version, and interface metadata. Run `python scripts/check-marketplace.py --sync` to generate `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, and the root `.claude-plugin/marketplace.json`; do not maintain these compatibility copies independently. Claude marketplace entries come from the canonical catalog and plugin descriptions; marketplace owner/description metadata lives in the checker's `claude_marketplace` function.
+- Edit a plugin's portable `mcp.json` for MCP commands, using `${PLUGIN_ROOT}` for paths inside the package. The same sync command generates `.codex-plugin/mcp.json` with `${PLUGIN_ROOT}` and `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`. Point the canonical `com.openai.mcpServers` field at `./.codex-plugin/mcp.json`. Claude automatically reads the root `.mcp.json`; keeping the client files separate prevents unresolved path variables. Both clients share the same `skills/` and runtime helpers.
 - Compiled downloads use the plugin's `runtime.json` for the exact artifact and hash. Rizin's independently versioned runtime and build inputs are in `bundle.lock.json`. Keep dependency versions in metadata and lockfiles.
 - Hyper-V's project, CLI, and protocol versions must match its runtime pin. The plugin version can advance independently for launcher or skill updates. The repository checker rejects inconsistent runtime updates; the build verifies the executable version and hash.
 - README files explain purpose, setup, and usage. Keep current version numbers, release dates, and changelogs out of them. The [download catalog](docs/guides/releases.md#release-index) is the maintained entrypoint for current releases.
@@ -45,7 +47,21 @@ python scripts/check-marketplace.py
 python scripts/test-runtime-packaging.py
 ```
 
-These fast checks validate the catalog, compatibility manifests, bundled skill paths, runtime pins, documentation layout/links, README policy, and runtime packaging. They do not install plugin dependencies or operate a VM.
+These fast checks validate both catalogs, Codex/Claude manifests and MCP configurations, bundled skill paths, runtime pins, documentation layout/links, README policy, and runtime packaging. They do not install plugin dependencies or operate a VM.
+
+When Claude Code is available, also run its native validator against the catalog and each plugin:
+
+```powershell
+claude plugin validate . --strict
+Get-ChildItem plugins -Directory | ForEach-Object {
+    claude plugin validate $_.FullName --strict
+    if ($LASTEXITCODE -ne 0) { throw "Claude validation failed: $($_.Name)" }
+}
+```
+
+To try a local skill without registering the marketplace, start `claude --plugin-dir ./plugins/rizin-re-toolkit` and invoke `/rizin-re-toolkit:rizin-re-toolkit`. Alternatively, `claude plugin marketplace add .` registers the checkout, after which the install commands in the [README](README.md#claude-code) use its local packages. See Claude's [manifest reference](https://code.claude.com/docs/en/plugins-reference) and [marketplace reference](https://code.claude.com/docs/en/plugins/marketplace-reference) for the supported fields and paths.
+
+For MCP configuration changes, run `./scripts/test-hyperv-launcher.ps1` on Windows. It exercises both clients' commands from an isolated plugin path containing spaces with a controlled executable, without operating a VM.
 
 The single PR workflow runs these checks for all changes. It runs Windows build/protocol/installer checks only when their inputs change. Pure documentation changes avoid native builds, newer commits cancel obsolete runs, and merging or tagging does not repeat CI. Use a manual workflow run when downloadable build artifacts are needed.
 

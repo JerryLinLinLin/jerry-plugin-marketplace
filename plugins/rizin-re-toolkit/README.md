@@ -11,7 +11,7 @@ Understand native executables and memory dumps with a portable Windows analysis 
 
 ## Install
 
-Install **Rizin RE Toolkit** from **Jerry's Plugin Marketplace** in Codex. The included skill guides runtime setup and analysis; invoke it as `$rizin-re-toolkit` or describe a relevant task.
+Install **Rizin RE Toolkit** from **Jerry's Plugin Marketplace** in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). The included skill guides runtime setup and analysis. Invoke `$rizin-re-toolkit` in Codex, `/rizin-re-toolkit:rizin-re-toolkit` in Claude Code, or describe a relevant task.
 
 The skill first checks a known installation path, then `%LOCALAPPDATA%\Programs\Rizin\<release-tag>\rizin\bin\rizin.exe`, then PATH, and reuses a working runtime before downloading. The [PowerShell installer](skills/rizin-re-toolkit/scripts/install.ps1) downloads and verifies the runtime when needed. By default it adds `bin` only to the current PowerShell process's PATH; use `-AddToUserPath` for persistent user PATH registration or `-Destination <directory>` for a custom installation root. Across separate shell sessions, use the resolved absolute executable path.
 

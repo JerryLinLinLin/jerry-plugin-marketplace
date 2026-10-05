@@ -1,6 +1,6 @@
 # Frida Use
 
-A plugin for dynamic instrumentation, debugging, and reverse engineering with Frida, focused on Windows. Both the plugin and skill display name are **Frida Use**, and both IDs are `frida-use`. Invoke the skill as `$frida-use`, or let automatic skill selection match a relevant task.
+A plugin for dynamic instrumentation, debugging, and reverse engineering with Frida, focused on Windows. Both the plugin and skill display name are **Frida Use**, and both IDs are `frida-use`. Invoke the skill as `$frida-use` in Codex or `/frida-use:frida-use` in Claude Code, or let automatic skill selection match a relevant task.
 
 The plugin includes all documentation, artwork, and licenses from the original project, together with maintained guides and reusable scripts. Installation and use are independent of the original project directory and Git repository.
 
@@ -20,10 +20,13 @@ The plugin includes all documentation, artwork, and licenses from the original p
 
 ## Install and use
 
-Install **Frida Use** from Jerry's Plugin Marketplace. Refresh an existing marketplace first:
+Install **Frida Use** from Jerry's Plugin Marketplace in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). Refresh an existing marketplace with the command for your client:
 
 ```powershell
+# Codex
 codex plugin marketplace upgrade my-plugin-marketplace
+# Claude Code
+claude plugin marketplace update my-plugin-marketplace
 ```
 
 The plugin provides a skill, Python helpers, and JavaScript examples. Install the Frida runtime in the analysis environment. No MCP server or account connection is required. An existing `frida-windows-re` installation is not renamed automatically; remove it after confirming that the new plugin works.

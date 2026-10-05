@@ -48,9 +48,11 @@ def test_rizin():
     assert rejected.returncode and 'clean runtime release directory' in rejected.stderr
     assert all(digest(output / name) == checksum for name, checksum in before.items())
     obsolete.unlink()
-    (runtime / 'skills').mkdir()
-    rejected = subprocess.run(command, capture_output=True, text=True)
-    assert rejected.returncode and 'Runtime contains plugin files' in rejected.stderr
+    for marker in ('skills', '.codex-plugin', '.claude-plugin'):
+        (runtime / marker).mkdir()
+        rejected = subprocess.run(command, capture_output=True, text=True)
+        assert rejected.returncode and 'Runtime contains plugin files' in rejected.stderr
+        (runtime / marker).rmdir()
     print('PASS: Rizin runtime-only archive, checksums, mixed-output rejection, and plugin-content rejection')
 
 

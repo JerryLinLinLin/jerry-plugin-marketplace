@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
+CLAUDE_METADATA_FIELDS = ("name", "version", "description", "author", "homepage", "repository", "license", "keywords")
 
 
 def read_json(path):
@@ -21,12 +22,53 @@ def compatibility_manifest(manifest):
     return result
 
 
+def claude_manifest(manifest):
+    # OpenAI interface metadata and the portable schema are not Claude fields.
+    result = {key: manifest[key] for key in CLAUDE_METADATA_FIELDS if key in manifest}
+    extension = manifest["extensions"]["com.openai"]
+    result["skills"] = extension["skills"]
+    if extension.get("mcpServers"):
+        result["mcpServers"] = "./.mcp.json"
+    return result
+
+
+def claude_marketplace(catalog, manifests):
+    return {
+        "name": catalog["name"],
+        "owner": {"name": "JerryLinLinLin"},
+        "metadata": {"description": "Windows reverse engineering and automation for AI agents."},
+        "plugins": [
+            {"name": entry["name"], "source": entry["source"]["path"],
+             "description": manifests[entry["name"]]["description"], "category": entry["category"]}
+            for entry in catalog["plugins"]
+        ],
+    }
+
+
+def mcp_configuration(portable, root_variable):
+    servers = {name: {key: value for key, value in server.items() if not (key == "type" and value == "stdio")}
+               for name, server in portable["mcpServers"].items()}
+    # Replace only the plugin-root token; preserve other environment variables.
+    return json.loads(json.dumps({"mcpServers": servers}).replace("${PLUGIN_ROOT}", root_variable))
+
+
 def check(sync=False):
     errors = []
 
     def require(condition, message):
         if not condition:
             errors.append(message)
+
+    def generated(path, expected):
+        contained = path.resolve().is_relative_to(ROOT)
+        require(contained, f"Generated path escapes the repository: {path}")
+        if not contained:
+            return
+        if sync:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(expected, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+        require(path.is_file() and read_json(path) == expected,
+                f"{path.relative_to(ROOT)}: compatibility configuration drift; run python scripts/check-marketplace.py --sync")
 
     catalog = read_json(ROOT / ".agents/plugins/marketplace.json")
     names = [entry["name"] for entry in catalog["plugins"]]
@@ -40,6 +82,7 @@ def check(sync=False):
             "Unexpected docs/ directory; follow the documentation index")
     readmes = [ROOT / "README.md"]
     repository_urls = set()
+    manifests = {}
 
     for entry in catalog["plugins"]:
         name = entry["name"]
@@ -50,18 +93,21 @@ def check(sync=False):
         if not plugin.is_dir():
             continue
         manifest = read_json(plugin / "plugin.json")
+        manifests[name] = manifest
         if manifest.get("repository"):
             repository_urls.add(manifest["repository"].rstrip("/") + "/blob/main/")
         require(manifest["name"] == name, f"{name}: manifest identity mismatch")
         require(bool(SEMVER.fullmatch(manifest["version"])), f"{name}: invalid semantic version")
-        expected = compatibility_manifest(manifest)
-        compat_path = plugin / ".codex-plugin/plugin.json"
-        if sync:
-            compat_path.parent.mkdir(parents=True, exist_ok=True)
-            compat_path.write_text(json.dumps(expected, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        require(compat_path.is_file() and read_json(compat_path) == expected,
-                f"{name}: compatibility manifest drift; run python scripts/check-marketplace.py --sync")
+        generated(plugin / ".codex-plugin/plugin.json", compatibility_manifest(manifest))
+        generated(plugin / ".claude-plugin/plugin.json", claude_manifest(manifest))
         extension = manifest["extensions"]["com.openai"]
+        if extension.get("mcpServers"):
+            # Claude automatically loads .mcp.json, so Codex must use its own file.
+            require(extension["mcpServers"] == "./.codex-plugin/mcp.json",
+                    f"{name}: Codex MCP configuration must use ./.codex-plugin/mcp.json")
+            portable = read_json(plugin / "mcp.json")
+            generated(plugin / ".codex-plugin/mcp.json", mcp_configuration(portable, "${PLUGIN_ROOT}"))
+            generated(plugin / ".mcp.json", mcp_configuration(portable, "${CLAUDE_PLUGIN_ROOT}"))
         require(entry["category"] == extension["interface"]["category"], f"{name}: category mismatch")
         for field, relative in (("skills", extension["skills"]), ("logo", extension["interface"].get("logo")),
                                 ("mcpServers", extension.get("mcpServers"))):
@@ -90,12 +136,9 @@ def check(sync=False):
             require(bool(re.fullmatch(r"[a-fA-F0-9]{64}", runtime["sha256"])), f"{name}: invalid runtime SHA-256")
             expected_url = f'{manifest["repository"]}/releases/download/{runtime["tag"]}/{runtime["asset"]}'
             require(runtime["url"] == expected_url, f"{name}: runtime URL must match its exact tag and asset")
-        if (plugin / "mcp.json").exists() and (plugin / ".mcp.json").exists():
-            portable = read_json(plugin / "mcp.json")["mcpServers"]
-            compatible = read_json(plugin / ".mcp.json")["mcpServers"]
-            normalized = {key: {field: value for field, value in server.items() if not (field == "type" and value == "stdio")}
-                          for key, server in portable.items()}
-            require(normalized == compatible, f"{name}: MCP configurations disagree")
+
+    if len(manifests) == len(names):
+        generated(ROOT / ".claude-plugin/marketplace.json", claude_marketplace(catalog, manifests))
 
     # Existing native version literals remain part of the published binary identity.
     # Catch partial version bumps without rewriting an already released executable.
@@ -132,13 +175,13 @@ def check(sync=False):
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
     if not errors:
-        print(f"PASS: {len(names)} plugins; catalog, manifests, runtime pins, README policy, and entrypoint links")
+        print(f"PASS: {len(names)} plugins; Codex/Claude catalogs, manifests and MCP configs, runtime pins, README policy, and entrypoint links")
     return bool(errors)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sync", action="store_true", help="Regenerate compatibility manifests from each canonical plugin.json before checking")
+    parser.add_argument("--sync", action="store_true", help="Regenerate Codex/Claude compatibility files from the catalog, plugin.json and mcp.json before checking")
     args = parser.parse_args()
     try:
         sys.exit(check(args.sync))

@@ -1,0 +1,21 @@
+{
+  "name": "hyper-v-control",
+  "version": "0.1.2",
+  "description": "Control Hyper-V VMs, graphical consoles, guest automation and user/kernel debugging through a native C# stdio MCP server.",
+  "author": {
+    "name": "JerryLinLinLin",
+    "url": "https://github.com/JerryLinLinLin"
+  },
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "hyper-v",
+    "windows",
+    "virtual-machine",
+    "debugger",
+    "windbg",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

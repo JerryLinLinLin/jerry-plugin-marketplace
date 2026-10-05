@@ -14,7 +14,7 @@ Manage a Hyper-V lab from your AI agent. Create and restore experiments, interac
 
 Requires a Windows x64 host with Hyper-V. The distributed executable is self-contained and needs no separate .NET or Python installation.
 
-Install **Hyper-V Control** from **Jerry's Plugin Marketplace** in Codex. The plugin includes its skill and launcher. On first start, the launcher downloads and verifies the required executable automatically; subsequent starts reuse the installed runtime.
+Install **Hyper-V Control** from **Jerry's Plugin Marketplace** in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). The plugin includes its skill and launcher. On first start, the launcher downloads and verifies the required executable automatically; subsequent starts reuse the installed runtime. Invoke `$hyper-v-control` in Codex or `/hyper-v-control:hyper-v-control` in Claude Code, or describe a VM task.
 
 For another stdio MCP client, download the EXE from the [runtime releases](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/guides/releases.md#release-index) and point its configuration at the executable's absolute path. This example assumes you saved it as `C:\Tools\HyperVControl.exe`:
 
