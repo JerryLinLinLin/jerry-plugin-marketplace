@@ -1,0 +1,161 @@
+{
+  "imported_on": "2026-10-01",
+  "source_commit": "180b5c128894a506493fef40ef72849a6835a24e",
+  "files": [
+    {
+      "source": ".codex-plugin/plugin.json",
+      "destination": "docs/migration/original-codex-plugin.json",
+      "sha256": "988d156980fcb9e86e4788750190c8ba9814f734709eb15416f5937de16b6639"
+    },
+    {
+      "source": "assets/icon.svg",
+      "destination": "assets/icon.svg",
+      "sha256": "fa5f541bb54e77e613e1d7f8b85f819f0c5dc2128d643e42f38b8e49ce87498f"
+    },
+    {
+      "source": "LICENSE",
+      "destination": "LICENSE",
+      "sha256": "e6b2a39e6614fea30209cacf4e959aba1affd6a783f5c6ef67263e37844ba9a8"
+    },
+    {
+      "source": "plugin.json",
+      "destination": "docs/migration/original-plugin.json",
+      "sha256": "2890750ed09c8e861f0a25b02ef01d3ddefdcf875440d24e0f0176e8b15f4735"
+    },
+    {
+      "source": "README.md",
+      "destination": "docs/migration/original-readme.md",
+      "sha256": "132bf1cb45a34ce7678ea04803587dcd8097951af301a918665a708ad30f78b3"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-bypass.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-bypass.md",
+      "sha256": "2d3a2483d0aac9991c077cb1d769ace60247fc2dbe88dea7b9633480ca6749c3"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/assembly.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/assembly.md",
+      "sha256": "5016716bffa21ea342147008ceb2715c1a5c3a9437d86b9e5c90403d25bb3152"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/debug-flags.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/debug-flags.md",
+      "sha256": "2fd48952b1d004bfef964237ff427a9b2e0bd5dd4e4aa249b0ebd6b6162989f3"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/exceptions.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/exceptions.md",
+      "sha256": "43089ecc8ce999ab24ccfcca82fd65a1e506244af70d09f958632ab7c0d17bcd"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/interactive.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/interactive.md",
+      "sha256": "4eaa99546dd531add5a1de4cfa5e531ba9d69cd6837f984098d98f243fc0490a"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/misc.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/misc.md",
+      "sha256": "a66a1d8a782c20c9512cbd03f86c6cd7aa55b745f8078ecfc84acb2bd0b52136"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/object-handles.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/object-handles.md",
+      "sha256": "c2d5959d8d4659063166ae286b8e0d1ebf346db4ab7293abd46d934f826aa05d"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/process-memory.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/process-memory.md",
+      "sha256": "aefa5076a27e78314cf16015cc407e811719cbbe5a44eb46883840e016136ccc"
+    },
+    {
+      "source": "skills/frida-windows-re/references/anti-debug-db/timing.md",
+      "destination": "skills/frida-use/references/legacy/anti-debug-db/timing.md",
+      "sha256": "8d41fc88dc9ce28b593935b316b2c3246f8399706036a9c8bd1d5fb69c307f6a"
+    },
+    {
+      "source": "skills/frida-windows-re/references/cli-tools.md",
+      "destination": "skills/frida-use/references/legacy/cli-tools.md",
+      "sha256": "c5a4ca65c8ad865bebc4ce36c668b42110d4226cf436febc6042a4270590cfe7"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/best-practices.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/best-practices.md",
+      "sha256": "376d3888999c61a1c1a56c44cc084417d1a539209c21b999a5d647ec676e3ac4"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/examples-windows.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/examples-windows.md",
+      "sha256": "260409a31794fe85831e95aeb135548ddcb15c5a7a6741be142775735fd55a9a"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/frida-cli.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/frida-cli.md",
+      "sha256": "591fca9ffdad0e14ea0008117971888acbcf8a2c01ed993c171c7de6e0d72ac4"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/frida-trace.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/frida-trace.md",
+      "sha256": "a4ddf0be0a87b755aa7eccac85f1b7af80ab1b377c3ffb95978449ad49f09e82"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/functions.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/functions.md",
+      "sha256": "03763c56dc8a3fe2afc6238aeb2487fb4714d15fe714a8c7c3f3f75c1c5519c5"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/gadget.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/gadget.md",
+      "sha256": "b2b9bc98d16bd6641a4abc5c5b0d005979268b968772e57eae8967a56f37fe14"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/javascript-api.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/javascript-api.md",
+      "sha256": "69fb333a0400acd23ee238f98de800ab234e2eae545082ffd1be3bb4932615c3"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/messages.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/messages.md",
+      "sha256": "1bc5e4fce663272fb9e9861a0001d1acbb52b6487f49b318b66a56b1cad1990d"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/modes.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/modes.md",
+      "sha256": "4b7b6c91430eb7167324b5f84d4d5ae09586cd4e09b7b82555f4ba1fb34ac3bf"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/quickstart.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/quickstart.md",
+      "sha256": "4f486074b523c247891b806be126d3816531083fa350bd0471b80cfb8c47fc43"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/stalker.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/stalker.md",
+      "sha256": "1c29d63b4ccdea5746189007ec76b7925c44af073a1659538d018d4014ef7683"
+    },
+    {
+      "source": "skills/frida-windows-re/references/frida-docs/troubleshooting.md",
+      "destination": "skills/frida-use/references/legacy/frida-docs/troubleshooting.md",
+      "sha256": "73f6d5cf650440772523da95aebc3760ed3b30979de36bac1a16f11ccea9f63e"
+    },
+    {
+      "source": "skills/frida-windows-re/references/js-api-cheatsheet.md",
+      "destination": "skills/frida-use/references/legacy/js-api-cheatsheet.md",
+      "sha256": "df171bb28965809f3acb5739830cb2c7bb24b9b486ac0b7f1dca9d644c07b143"
+    },
+    {
+      "source": "skills/frida-windows-re/references/product-security.md",
+      "destination": "skills/frida-use/references/legacy/product-security.md",
+      "sha256": "456b226c9326e3f1e3aae20d369173b17b0a961be4d2d5f53f70b988c0f9923c"
+    },
+    {
+      "source": "skills/frida-windows-re/references/windows-hooking-recipes.md",
+      "destination": "skills/frida-use/references/legacy/windows-hooking-recipes.md",
+      "sha256": "7cc92432b91150359eba80b162340dcc839a8229e14ec465f918df6336b9358c"
+    },
+    {
+      "source": "skills/frida-windows-re/SKILL.md",
+      "destination": "docs/migration/original-skill.md",
+      "sha256": "d0a1ac3cf9bcd7402d216d544d8b415550dd1191ddc7c37f5fcd445397df85f8"
+    }
+  ]
+}

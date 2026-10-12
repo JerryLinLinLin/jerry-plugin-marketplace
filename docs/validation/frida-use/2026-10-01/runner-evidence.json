@@ -1,0 +1,878 @@
+[
+  {
+    "case": "async-js-error",
+    "events_sha256": "6afbba4eb10b3f311961526d60e64b5b5d46c5956965b65ced2c09827f98359a",
+    "records": [
+      {
+        "sequence": 6,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:43.705957+00:00",
+        "monotonic_ns": 747616279026000,
+        "message": {
+          "type": "error",
+          "description": "Error: intentional async error",
+          "stack": "Error: intentional async error\n    at <anonymous> (/async-js-error.js:1)\n    at apply (native)\n    at <anonymous> (/frida/runtime/core.js:55)",
+          "fileName": "/async-js-error.js",
+          "lineNumber": 1,
+          "columnNumber": 1
+        }
+      },
+      {
+        "sequence": 7,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:43.723631+00:00",
+        "monotonic_ns": 747616296704200,
+        "pid": 109356
+      },
+      {
+        "sequence": 8,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:43.725293+00:00",
+        "monotonic_ns": 747616298357800,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 9,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "bounded-binary",
+    "events_sha256": "860e1a296c9ae1bee2d2986f4c8e0184b191df33dca5db481b7f24c31221012c",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:38.989223+00:00",
+        "monotonic_ns": 747611562188800,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "large"
+          }
+        },
+        "original_binary_size": 2097152,
+        "binary": {
+          "file": "blob-000004.bin",
+          "size": 1048576,
+          "truncated": true,
+          "sha256": "30e14955ebf1352266dc2ff8067e68104607e750abb9d3b36582b8af909fcb58"
+        }
+      },
+      {
+        "sequence": 7,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:39.497738+00:00",
+        "monotonic_ns": 747612070720600,
+        "pid": 49460
+      },
+      {
+        "sequence": 8,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:39.499173+00:00",
+        "monotonic_ns": 747612072149000,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 9,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 1,
+        "binary_bytes": 1048576
+      }
+    ]
+  },
+  {
+    "case": "queue-pressure",
+    "events_sha256": "3f60a02dc828b21a8100eb3e834c7d1dcfb5fcaa5675974d8ac6b32d71450491",
+    "records": [
+      {
+        "sequence": 129,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:41.939630+00:00",
+        "monotonic_ns": 747614512658900,
+        "pid": 61136
+      },
+      {
+        "sequence": 130,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:41.941115+00:00",
+        "monotonic_ns": 747614514143900,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 131,
+        "kind": "summary",
+        "exit_code": 2,
+        "dropped_events": 4877,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/attach",
+    "events_sha256": "0ecc9e583f430347f4659daf061eb61e521b5a43a680e21d1c24e25fbc29802e",
+    "records": [
+      {
+        "sequence": 9,
+        "kind": "detached",
+        "utc": "2026-10-02T00:12:54.224063+00:00",
+        "monotonic_ns": 747566796070400,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 10,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/binary",
+    "events_sha256": "21880c3f46a593b714a1aaafcb5dbd70e043992f2d9ede63dd1d75f207e036fc",
+    "records": [
+      {
+        "sequence": 6,
+        "kind": "message",
+        "utc": "2026-10-02T00:12:56.050991+00:00",
+        "monotonic_ns": 747568623043700,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 99248
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000006.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 7,
+        "kind": "message",
+        "utc": "2026-10-02T00:12:56.161402+00:00",
+        "monotonic_ns": 747568733456000,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 99248
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000007.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 8,
+        "kind": "message",
+        "utc": "2026-10-02T00:12:56.272362+00:00",
+        "monotonic_ns": 747568844417600,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 99248
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000008.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 9,
+        "kind": "message",
+        "utc": "2026-10-02T00:12:56.380859+00:00",
+        "monotonic_ns": 747568952915700,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 99248
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000009.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 10,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:12:56.412883+00:00",
+        "monotonic_ns": 747568984938700,
+        "pid": 88464
+      },
+      {
+        "sequence": 11,
+        "kind": "detached",
+        "utc": "2026-10-02T00:12:56.414492+00:00",
+        "monotonic_ns": 747568986550100,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 12,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 48
+      }
+    ]
+  },
+  {
+    "case": "x64/js-error",
+    "events_sha256": "cd81392e862e0d57842bbdbd2a9908c27db5d4333bbe29e1514f964d1d7ced50",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:02.897532+00:00",
+        "monotonic_ns": 747575469722200,
+        "message": {
+          "type": "error",
+          "description": "Error: intentional startup failure",
+          "stack": "Error: intentional startup failure\n    at <eval> (/js-error.js:1)",
+          "fileName": "/js-error.js",
+          "lineNumber": 1,
+          "columnNumber": 1
+        }
+      },
+      {
+        "sequence": 5,
+        "kind": "controller_error",
+        "utc": "2026-10-02T00:13:02.897950+00:00",
+        "monotonic_ns": 747575470138600,
+        "error": "RuntimeError",
+        "description": "agent failed or target detached before readiness"
+      },
+      {
+        "sequence": 6,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:02.899942+00:00",
+        "monotonic_ns": 747575472130200,
+        "pid": 20720
+      },
+      {
+        "sequence": 7,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:02.901274+00:00",
+        "monotonic_ns": 747575473466900,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 8,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/native-crash",
+    "events_sha256": "384fe25396c8504dab9c5d364c655ad216d4fd1577d235806bbe47a6ab03f9e3",
+    "records": [
+      {
+        "sequence": 7,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:01.214804+00:00",
+        "monotonic_ns": 747573786965600,
+        "reason": "process-terminated",
+        "crash": null
+      },
+      {
+        "sequence": 8,
+        "kind": "target_exit",
+        "utc": "2026-10-02T00:13:01.215697+00:00",
+        "monotonic_ns": 747573787851800,
+        "windows_exit_code": 3762438722,
+        "hex": "0xe0424242"
+      },
+      {
+        "sequence": 9,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/natural-exit",
+    "events_sha256": "2d68b7ee6508beeccc71ae36317ef6fcf44f5e5ec4060d9be46ec750dad01ed6",
+    "records": [
+      {
+        "sequence": 17,
+        "kind": "detached",
+        "utc": "2026-10-02T00:12:59.356984+00:00",
+        "monotonic_ns": 747571929108600,
+        "reason": "process-terminated",
+        "crash": null
+      },
+      {
+        "sequence": 18,
+        "kind": "target_exit",
+        "utc": "2026-10-02T00:12:59.357854+00:00",
+        "monotonic_ns": 747571929967200,
+        "windows_exit_code": 0,
+        "hex": "0x00000000"
+      },
+      {
+        "sequence": 19,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/no-ready",
+    "events_sha256": "9474d2a8fe88b7d9ca7849e44616bc94259b92783ce102eb9f384b3cbba74144",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "controller_error",
+        "utc": "2026-10-02T00:13:06.706546+00:00",
+        "monotonic_ns": 747579278824700,
+        "error": "TimeoutError",
+        "description": "agent did not send {type: 'ready'} before the deadline"
+      },
+      {
+        "sequence": 5,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:06.708938+00:00",
+        "monotonic_ns": 747579281214100,
+        "pid": 54720
+      },
+      {
+        "sequence": 6,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:06.710429+00:00",
+        "monotonic_ns": 747579282701800,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 7,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/qjs",
+    "events_sha256": "3141fd9d745d15138f4c29889acce4a70f9380258e6967a4e945ed22ee87979a",
+    "records": [
+      {
+        "sequence": 12,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:12:40.219101+00:00",
+        "monotonic_ns": 747552790809800,
+        "pid": 87088
+      },
+      {
+        "sequence": 13,
+        "kind": "detached",
+        "utc": "2026-10-02T00:12:40.220593+00:00",
+        "monotonic_ns": 747552792299900,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 14,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/syntax-error",
+    "events_sha256": "f393a7598fddef991ac8e66020f58adfaa698d51042a7a38aef15cf4858cfa06",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "controller_error",
+        "utc": "2026-10-02T00:13:04.565810+00:00",
+        "monotonic_ns": 747577138036000,
+        "error": "InvalidArgumentError",
+        "description": "script(line 1): SyntaxError: variable name expected"
+      },
+      {
+        "sequence": 5,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:04.567834+00:00",
+        "monotonic_ns": 747577140066400,
+        "pid": 83236
+      },
+      {
+        "sequence": 6,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:04.569034+00:00",
+        "monotonic_ns": 747577141259100,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 7,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x64/v8",
+    "events_sha256": "f20dccc4f3ec897e931a2832a099cf02e7cac9586204e905863c4cb9d9e9cc1b",
+    "records": [
+      {
+        "sequence": 12,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:12:42.992993+00:00",
+        "monotonic_ns": 747555564760800,
+        "pid": 40224
+      },
+      {
+        "sequence": 13,
+        "kind": "detached",
+        "utc": "2026-10-02T00:12:42.994571+00:00",
+        "monotonic_ns": 747555566340300,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 14,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/attach",
+    "events_sha256": "020df80d91093f553134ee884e12718bc88e5f0c0fe18cb476593684132a7add",
+    "records": [
+      {
+        "sequence": 9,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:23.594845+00:00",
+        "monotonic_ns": 747596167481300,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 10,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/binary",
+    "events_sha256": "a96322c150e7a0fa3aa6fb76c35d3d464b2584a918367b53eafc111b913cea1d",
+    "records": [
+      {
+        "sequence": 6,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:25.622749+00:00",
+        "monotonic_ns": 747598195433200,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 27936
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000006.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 7,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:25.730395+00:00",
+        "monotonic_ns": 747598303083300,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 27936
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000007.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 8,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:25.838694+00:00",
+        "monotonic_ns": 747598411380800,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 27936
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000008.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 9,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:25.947852+00:00",
+        "monotonic_ns": 747598520540800,
+        "message": {
+          "type": "send",
+          "payload": {
+            "type": "read",
+            "size": 12,
+            "tid": 27936
+          }
+        },
+        "original_binary_size": 12,
+        "binary": {
+          "file": "blob-000009.bin",
+          "size": 12,
+          "truncated": false,
+          "sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+        }
+      },
+      {
+        "sequence": 10,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:25.964701+00:00",
+        "monotonic_ns": 747598537392700,
+        "pid": 26712
+      },
+      {
+        "sequence": 11,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:25.966830+00:00",
+        "monotonic_ns": 747598539514000,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 12,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 48
+      }
+    ]
+  },
+  {
+    "case": "x86/js-error",
+    "events_sha256": "f6ab81f7aaa865fc403ca21d750b0c6a60efe574436cca4624c7dde1f94e38f4",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "message",
+        "utc": "2026-10-02T00:13:33.035332+00:00",
+        "monotonic_ns": 747605608166300,
+        "message": {
+          "type": "error",
+          "description": "Error: intentional startup failure",
+          "stack": "Error: intentional startup failure\n    at <eval> (/js-error.js:1)",
+          "fileName": "/js-error.js",
+          "lineNumber": 1,
+          "columnNumber": 1
+        }
+      },
+      {
+        "sequence": 5,
+        "kind": "controller_error",
+        "utc": "2026-10-02T00:13:33.035730+00:00",
+        "monotonic_ns": 747605608560500,
+        "error": "RuntimeError",
+        "description": "agent failed or target detached before readiness"
+      },
+      {
+        "sequence": 6,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:33.037878+00:00",
+        "monotonic_ns": 747605610710800,
+        "pid": 104976
+      },
+      {
+        "sequence": 7,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:33.039750+00:00",
+        "monotonic_ns": 747605612582400,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 8,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/native-crash",
+    "events_sha256": "80fc9b3befc6cc3f1b1a2a7164ca1357c16972943497ab0c085993993e18d875",
+    "records": [
+      {
+        "sequence": 7,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:31.145906+00:00",
+        "monotonic_ns": 747603718707900,
+        "reason": "process-terminated",
+        "crash": null
+      },
+      {
+        "sequence": 8,
+        "kind": "target_exit",
+        "utc": "2026-10-02T00:13:31.146669+00:00",
+        "monotonic_ns": 747603719465400,
+        "windows_exit_code": 3762438722,
+        "hex": "0xe0424242"
+      },
+      {
+        "sequence": 9,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/natural-exit",
+    "events_sha256": "d4742b74adacd0be092ac5b679b46cc20f3244ef4065d5c5115f273e36364ddc",
+    "records": [
+      {
+        "sequence": 17,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:29.094479+00:00",
+        "monotonic_ns": 747601667237700,
+        "reason": "process-terminated",
+        "crash": null
+      },
+      {
+        "sequence": 18,
+        "kind": "target_exit",
+        "utc": "2026-10-02T00:13:29.095366+00:00",
+        "monotonic_ns": 747601668119200,
+        "windows_exit_code": 0,
+        "hex": "0x00000000"
+      },
+      {
+        "sequence": 19,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/no-ready",
+    "events_sha256": "96e0dd3fb521a738e54e74ca73a99a4ec1b818896bec9a33d8a85372257ae7bc",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "controller_error",
+        "utc": "2026-10-02T00:13:37.288465+00:00",
+        "monotonic_ns": 747609861397900,
+        "error": "TimeoutError",
+        "description": "agent did not send {type: 'ready'} before the deadline"
+      },
+      {
+        "sequence": 5,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:37.290946+00:00",
+        "monotonic_ns": 747609863874800,
+        "pid": 23688
+      },
+      {
+        "sequence": 6,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:37.292819+00:00",
+        "monotonic_ns": 747609865746500,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 7,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/qjs",
+    "events_sha256": "c287a469c6fd4674e84534158fd66e3f1eb6782a6606d4792d6254d15e0ae773",
+    "records": [
+      {
+        "sequence": 12,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:09.198230+00:00",
+        "monotonic_ns": 747581770552600,
+        "pid": 64772
+      },
+      {
+        "sequence": 13,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:09.200157+00:00",
+        "monotonic_ns": 747581772479200,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 14,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/syntax-error",
+    "events_sha256": "e8216c0ae604fb2e61eda0860710d4cd89489c420d376ae54602ecabff66e8e7",
+    "records": [
+      {
+        "sequence": 4,
+        "kind": "controller_error",
+        "utc": "2026-10-02T00:13:34.910039+00:00",
+        "monotonic_ns": 747607482914400,
+        "error": "InvalidArgumentError",
+        "description": "script(line 1): SyntaxError: variable name expected"
+      },
+      {
+        "sequence": 5,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:34.912277+00:00",
+        "monotonic_ns": 747607485152300,
+        "pid": 48580
+      },
+      {
+        "sequence": 6,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:34.913959+00:00",
+        "monotonic_ns": 747607486833200,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 7,
+        "kind": "summary",
+        "exit_code": 1,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  },
+  {
+    "case": "x86/v8",
+    "events_sha256": "204bfeeb76f20ca270158f6fb99953377b7e09abf35a14710caf76436ae746e9",
+    "records": [
+      {
+        "sequence": 12,
+        "kind": "killed_owned_spawn",
+        "utc": "2026-10-02T00:13:12.243260+00:00",
+        "monotonic_ns": 747584815653900,
+        "pid": 107476
+      },
+      {
+        "sequence": 13,
+        "kind": "detached",
+        "utc": "2026-10-02T00:13:12.245123+00:00",
+        "monotonic_ns": 747584817514100,
+        "reason": "application-requested",
+        "crash": null
+      },
+      {
+        "sequence": 14,
+        "kind": "summary",
+        "exit_code": 0,
+        "dropped_events": 0,
+        "truncated_blobs": 0,
+        "binary_bytes": 0
+      }
+    ]
+  }
+]

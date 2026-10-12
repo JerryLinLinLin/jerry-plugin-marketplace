@@ -1,0 +1,7 @@
+interface:
+  display_name: "Rizin RE Toolkit"
+  short_description: "Native RE, decompilation, and memory-dump analysis"
+  default_prompt: "Use $rizin-re-toolkit to analyze this binary or memory dump with the bundled Rizin tools."
+
+policy:
+  allow_implicit_invocation: true

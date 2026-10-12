@@ -1,0 +1,23 @@
+diff --git a/js/libdec/printer.js b/js/libdec/printer.js
+index 673e72b..a0c6779 100644
+--- a/js/libdec/printer.js
++++ b/js/libdec/printer.js
+@@ -9,10 +9,14 @@ import ColorsInvalid from './colors/invalid.js';
+ 
+ function initializeColors() {
+     const config = {};
+-    const colors = rizin ? rizin.command("ec*") : '';
+-    colors.split('\n').forEach(function(line) {
+-        const tok = line.split(' ');
+-        config[tok[1]] = tok[2];
++    const colors = rizin ? JSON.parse(rizin.command("ecj")) : {};
++    Object.keys(colors).forEach(function(key) {
++        const rgb = colors[key].rgb;
++        if (Array.isArray(rgb) && rgb.length === 3) {
++            config[key] = 'rgb:' + rgb.map(function(value) {
++                return value.toString(16).padStart(2, '0');
++            }).join('');
++        }
+     });
+     return {
+         "callname": config['call'] || 'gray',

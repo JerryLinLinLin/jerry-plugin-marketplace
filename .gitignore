@@ -1,0 +1,8 @@
+# Build output
+build/
+test/
+__pycache__/
+*.pyc
+**/bin/
+**/obj/
+plugins/hyper-v-control/bin/

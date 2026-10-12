@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/HyperVControl/HyperVControl.csproj" />
+  <Project Path="tests/HyperVControl.Tests/HyperVControl.Tests.csproj" />
+</Solution>

@@ -1,0 +1,228 @@
+{
+  "frida": "17.19.0",
+  "python": "3.13.15 (tags/v3.13.15:4061bc4, Aug  5 2026, 13:05:39) [MSC v.1944 64 bit (AMD64)]",
+  "results": [
+    {
+      "case": "x64-qjs-runner",
+      "passed": true,
+      "file_events": 5
+    },
+    {
+      "case": "x64-qjs-live-api",
+      "passed": true,
+      "exercise": {
+        "arch": "x64",
+        "baseline": 12,
+        "modified": 99,
+        "restored": 12,
+        "replaced": 105,
+        "reverted": 12,
+        "bytePatch": {
+          "before": 7,
+          "patched": 42,
+          "after": 7,
+          "bytes": [
+            184,
+            7,
+            0,
+            0,
+            0,
+            195
+          ]
+        },
+        "winerror": {
+          "value": 0,
+          "lastError": 1234
+        }
+      },
+      "inspector": null,
+      "binary_sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+    },
+    {
+      "case": "x64-v8-runner",
+      "passed": true,
+      "file_events": 5
+    },
+    {
+      "case": "x64-v8-live-api",
+      "passed": true,
+      "exercise": {
+        "arch": "x64",
+        "baseline": 12,
+        "modified": 99,
+        "restored": 12,
+        "replaced": 105,
+        "reverted": 12,
+        "bytePatch": {
+          "before": 7,
+          "patched": 42,
+          "after": 7,
+          "bytes": [
+            184,
+            7,
+            0,
+            0,
+            0,
+            195
+          ]
+        },
+        "winerror": {
+          "value": 0,
+          "lastError": 1234
+        }
+      },
+      "inspector": {
+        "paused": true,
+        "result": 42,
+        "top_frame": "debugProbe"
+      },
+      "binary_sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+    },
+    {
+      "case": "x64-runner-attach",
+      "passed": true
+    },
+    {
+      "case": "x64-runner-binary",
+      "passed": true,
+      "attachments": 4
+    },
+    {
+      "case": "x64-natural-exit",
+      "passed": true
+    },
+    {
+      "case": "x64-native-crash",
+      "passed": true
+    },
+    {
+      "case": "x64-js-error",
+      "passed": true
+    },
+    {
+      "case": "x64-syntax-error",
+      "passed": true
+    },
+    {
+      "case": "x64-no-ready",
+      "passed": true
+    },
+    {
+      "case": "x86-qjs-runner",
+      "passed": true,
+      "file_events": 5
+    },
+    {
+      "case": "x86-qjs-live-api",
+      "passed": true,
+      "exercise": {
+        "arch": "ia32",
+        "baseline": 12,
+        "modified": 99,
+        "restored": 12,
+        "replaced": 105,
+        "reverted": 12,
+        "bytePatch": {
+          "before": 7,
+          "patched": 42,
+          "after": 7,
+          "bytes": [
+            184,
+            7,
+            0,
+            0,
+            0,
+            195
+          ]
+        },
+        "winerror": {
+          "value": 0,
+          "lastError": 1234
+        }
+      },
+      "inspector": null,
+      "binary_sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+    },
+    {
+      "case": "x86-v8-runner",
+      "passed": true,
+      "file_events": 5
+    },
+    {
+      "case": "x86-v8-live-api",
+      "passed": true,
+      "exercise": {
+        "arch": "ia32",
+        "baseline": 12,
+        "modified": 99,
+        "restored": 12,
+        "replaced": 105,
+        "reverted": 12,
+        "bytePatch": {
+          "before": 7,
+          "patched": 42,
+          "after": 7,
+          "bytes": [
+            184,
+            7,
+            0,
+            0,
+            0,
+            195
+          ]
+        },
+        "winerror": {
+          "value": 0,
+          "lastError": 1234
+        }
+      },
+      "inspector": {
+        "paused": true,
+        "result": 42,
+        "top_frame": "debugProbe"
+      },
+      "binary_sha256": "04971cf59e7a83d5d3da4b70dddf2bedf32454625dfbb8cc86e02244c784a263"
+    },
+    {
+      "case": "x86-runner-attach",
+      "passed": true
+    },
+    {
+      "case": "x86-runner-binary",
+      "passed": true,
+      "attachments": 4
+    },
+    {
+      "case": "x86-natural-exit",
+      "passed": true
+    },
+    {
+      "case": "x86-native-crash",
+      "passed": true
+    },
+    {
+      "case": "x86-js-error",
+      "passed": true
+    },
+    {
+      "case": "x86-syntax-error",
+      "passed": true
+    },
+    {
+      "case": "x86-no-ready",
+      "passed": true
+    },
+    {
+      "case": "bounded-binary",
+      "passed": true
+    },
+    {
+      "case": "queue-pressure",
+      "passed": true
+    },
+    {
+      "case": "async-js-error",
+      "passed": true
+    }
+  ]
+}

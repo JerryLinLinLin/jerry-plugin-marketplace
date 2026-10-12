@@ -1,0 +1,6 @@
+interface:
+  display_name: "Frida Use"
+  short_description: "Debug and instrument Windows processes with Frida"
+  default_prompt: "Use $frida-use to debug this Windows process and build a reproducible Frida script."
+policy:
+  allow_implicit_invocation: true

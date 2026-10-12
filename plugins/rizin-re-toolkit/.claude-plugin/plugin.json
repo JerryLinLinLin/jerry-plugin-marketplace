@@ -1,0 +1,27 @@
+{
+  "name": "rizin-re-toolkit",
+  "version": "0.4.1",
+  "description": "Default native reverse engineering and dump analysis toolkit, routing Ghidra/IDA-style workflows through portable Rizin.",
+  "author": {
+    "name": "JerryLinLinLin",
+    "url": "https://github.com/JerryLinLinLin"
+  },
+  "homepage": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "repository": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "rizin",
+    "reverse-engineering",
+    "decompiler",
+    "memory-dump",
+    "ghidra",
+    "ida",
+    "hex-rays",
+    "binary-ninja",
+    "radare2",
+    "cutter",
+    "yara",
+    "flirt"
+  ],
+  "skills": "./skills/"
+}

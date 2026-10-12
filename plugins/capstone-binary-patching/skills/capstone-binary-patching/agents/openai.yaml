@@ -1,0 +1,7 @@
+interface:
+  display_name: "Capstone Binary Patching"
+  short_description: "Build, diff, verify and reverse native binary patches"
+  default_prompt: "Use $capstone-binary-patching to create and validate a reversible patch for this binary using uv-managed tools."
+
+policy:
+  allow_implicit_invocation: true

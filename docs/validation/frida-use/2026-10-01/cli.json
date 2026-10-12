@@ -1,0 +1,26 @@
+[
+  {
+    "arch": "x64",
+    "mode": "repl",
+    "passed": true,
+    "exit_code": 0
+  },
+  {
+    "arch": "x64",
+    "mode": "trace",
+    "passed": true,
+    "exit_code": 1
+  },
+  {
+    "arch": "x86",
+    "mode": "repl",
+    "passed": true,
+    "exit_code": 0
+  },
+  {
+    "arch": "x86",
+    "mode": "trace",
+    "passed": true,
+    "exit_code": 1
+  }
+]
