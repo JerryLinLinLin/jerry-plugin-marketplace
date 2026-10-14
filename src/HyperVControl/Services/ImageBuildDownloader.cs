@@ -76,6 +76,14 @@ internal sealed class ImageBuildDownloader(HttpClient http)
             }
         }
 
+        if (head.Length is { } size)
+        {
+            var remaining = size - (File.Exists(partial) ? Math.Min(size, new FileInfo(partial).Length) : 0);
+            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(cacheDirectory))!);
+            if (drive.AvailableFreeSpace < remaining + (512L << 20))
+                throw new IOException($"{drive.Name} has {drive.AvailableFreeSpace / (double)(1L << 30):0.0} GB free; downloading {fileName} needs {remaining / (double)(1L << 30):0.0} GB more. Free space or choose another outputDirectory.");
+        }
+
         for (var attempt = 1; ; attempt++)
         {
             try

@@ -95,7 +95,7 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
             credentials, kernelDebug,
             job.Status == JobStatus.Succeeded
                 ? "Done: the job result lists the outputs, warnings and nextSteps."
-                : failed ? "The build failed; nothing was left mounted and its outputs were removed (downloads stay cached)."
+                : failed ? "The build failed. Its outputs were removed and nothing it attached stays mounted unless the error says otherwise; downloads stay cached for a retry."
                 : $"Poll hyperv_jobs (action=wait or status, id={job.Id}) until the job finishes; its result lists the outputs, warnings and nextSteps.");
     }
 
@@ -570,10 +570,13 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
         e.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is [var c] && char.IsAsciiLetter(c)
             ? char.ToUpperInvariant(c) : null;
 
-    /// <summary>Copies a folder tree (hidden files included, reparse points skipped) into a directory that must not exist yet.</summary>
+    /// <summary>
+    /// Copies a folder tree (hidden files included, reparse points skipped) into the image. An existing folder there is
+    /// merged, but a file the image already has is never overwritten: that fails the build.
+    /// </summary>
     internal static ImageBuildToolsCopy CopyTree(string source, string destination, string guestPath)
     {
-        if (Directory.Exists(destination) || File.Exists(destination)) throw new HyperVOperationException($"{guestPath} already exists in the image.", "InvalidArgument");
+        if (File.Exists(destination)) throw new HyperVOperationException($"{guestPath} is a file in the image.", "InvalidArgument");
         var options = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false };
         Directory.CreateDirectory(destination);
         foreach (var directory in Directory.EnumerateDirectories(source, "*", options))
@@ -582,7 +585,10 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
         long bytes = 0;
         foreach (var file in Directory.EnumerateFiles(source, "*", options))
         {
-            File.Copy(file, Path.Combine(destination, Path.GetRelativePath(source, file)), overwrite: false);
+            var relative = Path.GetRelativePath(source, file);
+            var target = Path.Combine(destination, relative);
+            if (File.Exists(target)) throw new HyperVOperationException($"{guestPath}\\{relative} already exists in the image; tools never overwrite image files.", "InvalidArgument");
+            File.Copy(file, target, overwrite: false);
             files++;
             bytes += new FileInfo(file).Length;
         }
@@ -617,7 +623,7 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
         var l = plan.Linux!;
         return
         [
-            $"Keep {plan.VhdPath} unchanged as the template: give each VM a differencing child or a full copy, and give each VM its own seed ISO (a new instance-id) when cloning.",
+            $"Keep {plan.VhdPath} unchanged as the template: give each VM a differencing child or a full copy. Children of the never-booted template can share the seed ISO (and so its hostname).",
             "Create the VM with hyperv_vm_create: generation=2, vhdPath=<the child disk>, memoryMb=2048, processors=2, switchName=<a switch with DHCP and internet access>.",
             "Before the first start: Secure Boot On with the MicrosoftUEFICertificateAuthority template (Set-VMFirmware -SecureBootTemplate MicrosoftUEFICertificateAuthority; the Windows template rejects the Linux shim); checkpointType=Standard; automatic checkpoints off.",
             $"Attach the seed as a DVD: hyperv_disk action=attach_iso path={plan.SeedIsoPath}.",

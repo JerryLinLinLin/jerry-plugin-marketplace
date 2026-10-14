@@ -543,6 +543,18 @@ internal static class ImageBuildTests
                 "source=eval-iot downloads the evaluation ISO into <output>\\cache (kept), mounts it and applies install.esd; the unverified hash is recorded with a warning");
         }
 
+        var existingTools = Directory.CreateDirectory(Path.Combine(root, "image-with-tools", "Tools")).FullName;
+        File.WriteAllText(Path.Combine(existingTools, "vendor.txt"), "image file");
+        var merged = ImageBuildService.CopyTree(tools, existingTools, "C:\\Tools");
+        File.WriteAllText(Path.Combine(existingTools, "conflict.txt"), "image file");
+        var conflictSource = Directory.CreateDirectory(Path.Combine(root, "conflict-tools")).FullName;
+        File.WriteAllText(Path.Combine(conflictSource, "conflict.txt"), "tool file");
+        var conflict = Assert(() => ImageBuildService.CopyTree(conflictSource, existingTools, "C:\\Tools"));
+        check(merged.Files == 3 && File.ReadAllText(Path.Combine(existingTools, "vendor.txt")) == "image file" && File.Exists(Path.Combine(existingTools, "dbg.txt"))
+            && conflict?.Message.Contains("C:\\Tools\\conflict.txt already exists in the image", StringComparison.Ordinal) == true
+            && File.ReadAllText(Path.Combine(existingTools, "conflict.txt")) == "image file",
+            "An existing C:\\Tools in the image is merged, but an image file is never overwritten");
+
         var listJson = JsonDocument.Parse("""[{"index":1,"name":"Windows 11 Pro N"},{"index":2,"name":"Windows 11 Pro"},{"index":3,"name":"Windows 11 Pro for Workstations"}]""").RootElement;
         var ambiguous = Assert(() => ImageBuildService.SelectImage(listJson, null, "Pro"));
         var unknown = Assert(() => ImageBuildService.SelectImage(listJson, null, "Home"));
