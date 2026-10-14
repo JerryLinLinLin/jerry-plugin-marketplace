@@ -12,6 +12,8 @@
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed>
+    <!-- Deflates the bundled assemblies: 121 MB to 53 MB for about 50 ms more at process start; Native AOT and trimming are closed by Windows Forms, WMI and the RDP ActiveX control. -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <!-- Runtime hashes are pinned in the marketplace. Git-only/documentation changes
