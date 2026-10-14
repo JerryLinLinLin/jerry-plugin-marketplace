@@ -18,7 +18,7 @@ internal sealed record CatalogImage(
     string Description, string DiskUri, string? Hash, string? Sha256, string? ArchiveRelativePath,
     bool? SecureBoot, string? EnhancedSessionTransportType, string? MinHostVersion, string? MaxHostVersion,
     IReadOnlyList<CatalogDetail> Details, string OsFamily, IReadOnlyList<string> Warnings,
-    bool Expired, bool Stale, bool EndOfLife, bool Fetchable)
+    bool Stale, bool EndOfLife, bool Fetchable)
 {
     /// <summary>The disk type implied by the URI path before redirects: ".zip", ".vhdx", ".iso", another extension, or "".</summary>
     public string DiskExtension => ImageCatalogFeed.ExtensionOf(DiskUri);
@@ -40,7 +40,7 @@ internal static class ImageCatalogFeed
     private const int MaxDescription = 600;
 
     private static readonly JsonDocumentOptions Lenient = new() { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 64 };
-    private static readonly Regex WinDev = new(@"WinDev(?<yy>\d{2})(?<mm>\d{2})Eval", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex WinDev = new(@"WinDev\d{4}Eval", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex Ubuntu = new(@"\bUbuntu\s+(?<release>\d{2}\.\d{2})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex WindowsWord = new(@"\bwindows\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex LinuxWord = new(@"\b(ubuntu|debian|fedora|centos|red hat|rhel|suse|linux|almalinux|rocky|kali|mint|canonical|alpine)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -153,28 +153,16 @@ internal static class ImageCatalogFeed
         var sha256 = Sha256Of(hash);
 
         var warnings = new List<string>();
-        var expired = false;
-        var windev = WinDev.Match(name + " " + uri + " " + archive);
-        if (windev.Success)
+        // A Windows evaluation is informational, never a reason to skip the image: the feed publishes no end date, and
+        // Hyper-V Quick Create still downloads and runs Microsoft's Windows 11 dev environment (verified by the user on 2026-10-14).
+        if (WinDev.IsMatch(name + " " + uri + " " + archive) || (family == "windows" && IsEvaluation(name, description, details)))
         {
-            var built = updated ?? new DateTimeOffset(2000 + int.Parse(windev.Groups["yy"].Value, CultureInfo.InvariantCulture),
-                Math.Clamp(int.Parse(windev.Groups["mm"].Value, CultureInfo.InvariantCulture), 1, 12), 1, 0, 0, 0, TimeSpan.Zero);
-            // Windows development environment evaluations expire 90 days after their build (2407: 2024-07-25 to 2024-10-23).
-            var expiry = built.AddDays(90);
-            if (now >= expiry)
-            {
-                expired = true;
-                warnings.Add($"Expired evaluation: this is Microsoft's {windev.Value} Windows development environment (version {version ?? "unknown"}, built {built:yyyy-MM-dd}); "
-                    + $"its evaluation license expired on {expiry:yyyy-MM-dd}. It boots to a black desktop with a 'not genuine' notice and shuts down every hour, "
-                    + "and Microsoft discontinued these images. Build a Windows image from a current evaluation or licensed ISO instead.");
-            }
-            else warnings.Add($"Time-limited evaluation: it expires around {expiry:yyyy-MM-dd}, 90 days after its build.");
-        }
-        else if (family == "windows" && IsEvaluation(name, description, details) && updated is { } evalUpdated && now >= evalUpdated.AddDays(90))
-        {
-            expired = true;
-            warnings.Add($"Likely expired evaluation: this Windows evaluation image was last updated on {evalUpdated:yyyy-MM-dd}. "
-                + "Windows evaluations run for about 90 days and the feed publishes no expiry date, so it has almost certainly expired.");
+            var edition = details.FirstOrDefault(d => string.Equals(d.Name.Trim(), "Edition", StringComparison.OrdinalIgnoreCase))?.Value.Trim() is { Length: > 0 } named
+                ? named : "Windows Enterprise";
+            if (!edition.Contains("Evaluation", StringComparison.OrdinalIgnoreCase)) edition += " Evaluation";
+            warnings.Add($"Evaluation edition: {edition}" + (updated is { } evaluated ? $", last updated {evaluated:yyyy-MM-dd}" : "") + ". "
+                + "Hyper-V Quick Create still downloads and runs it. The evaluation license is time-limited (run `slmgr /xpr` inside the guest for the end date; "
+                + "Windows evaluations run about 90 days), so take a checkpoint after the first boot and recreate the VM from the image when it expires.");
         }
 
         var stale = updated is { } age && age < now.AddYears(-3);
@@ -212,7 +200,7 @@ internal static class ImageCatalogFeed
             warnings.Add("The disk is served over plain HTTP; only its SHA-256 protects the download.");
 
         return new(catalog, name, publisher, version, updated, Text(Child(item, "locale")), description, uri, hash, sha256, archive,
-            secureBoot, transport, min, max, details, family, warnings, expired, stale, endOfLife, fetchable);
+            secureBoot, transport, min, max, details, family, warnings, stale, endOfLife, fetchable);
     }
 
     /// <summary>VMCreate hides images whose minHostVersion/maxHostVersion exclude the host; unparseable bounds are ignored.</summary>

@@ -31,9 +31,15 @@ internal sealed partial class ImageCatalogService
             if (library.Find(image.Name) is { } named)
                 throw new HyperVOperationException($"The library already has an entry named '{named.Name}'" + (File.Exists(named.Path) ? " with different content" : " whose file is missing")
                     + "; remove it first (action=remove).", "AlreadyExists");
+            // A quick create that is downloading this image is joined like a fetch job; its result is the VM it creates.
             if (activeFetches.TryGetValue(image.Sha256, out var activeId) && Jobs.Get(activeId) is { Status: JobStatus.Queued or JobStatus.Running } active)
                 return new { alreadyRunning = true, job = active };
-            job = Jobs.Start("fetch " + image.Name, (progress, token) => RunFetchAsync(store, image, source.Location, keepArchive, progress, token));
+            job = Jobs.Start("fetch " + image.Name, async (progress, token) =>
+            {
+                var result = await RunFetchAsync(store, image, source.Location, keepArchive, progress, token);
+                progress.Report(new JobProgress(100, null, null, "done"));
+                return result;
+            });
             activeFetches[image.Sha256] = job.Id;
         }
         finally { fetchGate.Release(); }
@@ -45,6 +51,10 @@ internal sealed partial class ImageCatalogService
         ? new { ok = false, error = job.Error, errorType = job.ErrorType, job }
         : job;
 
+    /// <summary>
+    /// The fetch pipeline shared by fetch jobs and quick-create jobs: probe, download with resume, verify, extract, register.
+    /// It reports progress up to registration; the caller reports completion. It always clears <c>activeFetches</c> for the image.
+    /// </summary>
     private async Task<object?> RunFetchAsync(ImageLibraryStore store, CatalogImage image, string catalogLocation, bool keepArchive, IProgress<JobProgress> progress, CancellationToken ct)
     {
         var clock = Stopwatch.StartNew();
@@ -145,7 +155,7 @@ internal sealed partial class ImageCatalogService
                 new ImageSource(image.Catalog, catalogLocation, image.Name, image.Version, image.LastUpdated, image.DiskUri, sha, image.ArchiveRelativePath),
                 new ImageSizes(new FileInfo(target).Length, extension == ".zip" && inCache ? new FileInfo(source).Length : null),
                 new ImageConfig(image.SecureBoot, image.EnhancedSessionTransportType), Clock(),
-                Expired: image.Expired, ArchivePath: archiveKept, Warnings: image.Warnings.Count > 0 ? image.Warnings : null);
+                ArchivePath: archiveKept, Warnings: image.Warnings.Count > 0 ? image.Warnings : null);
             report("registering " + image.Name, 0, null);
             await store.UpdateLibraryAsync(index => index.Find(entry.Name) is null
                 ? (index with { Entries = [.. index.Entries, entry] }, entry)
@@ -153,7 +163,6 @@ internal sealed partial class ImageCatalogService
             outputs.Clear();
             if (extension == ".zip" && inCache && !keepArchive) ImageFiles.TryDelete(source);
             downloaded = null;
-            progress.Report(new JobProgress(100, null, null, "done"));
             return new
             {
                 entry = ProjectEntry(entry), archive = archiveKept, downloadedBytes, resumedFromBytes = resumedFrom, sha256 = sha,

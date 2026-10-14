@@ -2,7 +2,10 @@ using System.Text.Json;
 
 namespace HyperVControl.Services;
 
-/// <summary>A <c>hyperv_vm_create</c> request; the defaults are the tool's.</summary>
+/// <summary>
+/// A <c>hyperv_vm_create</c> request for the sources this service builds; the defaults are the tool's, except that the tool's
+/// default source, image, is resolved by <c>ImageCatalogService</c> and reaches this service as linked or existing_vhd.
+/// </summary>
 internal sealed record VmCreateRequest(string Name)
 {
     public string Source { get; init; } = "new_disk";
@@ -110,6 +113,56 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
         if (string.IsNullOrWhiteSpace(name) || name.Length > 100 || name != name.Trim() || name.EndsWith('.')
             || name.IndexOfAny(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) >= 0 || name.Any(char.IsControl))
             throw new ArgumentException($"{parameter} must be 1-100 characters without \\ / : * ? \" < > |, control characters, or leading/trailing spaces (the name becomes a folder).");
+    }
+
+    /// <summary>The argument checks <see cref="CreateAsync"/> makes for a Generation 2 VM's name, memory and processors, for callers that do long work first.</summary>
+    internal static void ValidateNewVm(string name, int memoryMb, int processors)
+    {
+        VmName(name, "name");
+        Memory(memoryMb, "memoryMb");
+        if (processors is < 1 or > 2048) throw new ArgumentException("processors must be 1-2048.");
+    }
+
+    /// <summary>
+    /// The refusals <see cref="CreateAsync"/> makes on the host before any change that need no disk: an existing VM with the name
+    /// (a warning instead with <paramref name="allowDuplicateName"/>) and the switch, resolved into <c>$__switch</c>: the Default
+    /// Switch by its fixed ID when no name is given (else the first switch), none for an empty name, else the exact name.
+    /// </summary>
+    private static void CreateGuards(HyperVScript s, string name, bool allowDuplicateName, string? switchName)
+    {
+        s.Line("$__name = " + L(name))
+            .Line("$__same = @(Hyper-V\\Get-VM | Where-Object { $_.Name -eq $__name })")
+            .Line(allowDuplicateName
+                ? "if ($__same.Count -gt 0) { [void]$__warnings.Add('Another VM already has this name; use this VM''s ID in later calls.') }"
+                : "if ($__same.Count -gt 0) { Stop-Control 'InvalidArgument' (\"A VM named '\" + $__name + \"' already exists (ID \" + $__same[0].Id + \"). Choose another name, or pass allowDuplicateName=true; later calls must then use the VM ID.\") }");
+
+        s.Line("$__switches = @(Get-VMSwitch)");
+        if (switchName is null)
+            s.Line($$"""
+                $__switch = @($__switches | Where-Object { [string]$_.Id -eq '{{VmScriptLibrary.DefaultSwitchId}}' }) | Select-Object -First 1
+                if ($null -eq $__switch) {
+                    $__switch = $__switches | Select-Object -First 1
+                    if ($null -eq $__switch) { [void]$__warnings.Add('No virtual switch exists; the network adapter is not connected.') }
+                    else { [void]$__warnings.Add("The Default Switch is missing; the network adapter is connected to '" + $__switch.Name + "'.") }
+                }
+                """);
+        else if (switchName.Length == 0) s.Line("$__switch = $null");
+        else s.Line("$__switch = @($__switches | Where-Object { $_.Name -eq " + L(switchName) + " })")
+            .Line("if ($__switch.Count -eq 0) { Stop-Control 'NotFound' ('Virtual switch ' + " + L(L(switchName)) + " + ' not found. Call hyperv_network action=list.') }")
+            .Line("if ($__switch.Count -gt 1) { Stop-Control 'AmbiguousName' 'Several virtual switches have that name.' }")
+            .Line("$__switch = $__switch[0]");
+    }
+
+    /// <summary>
+    /// Runs <see cref="CreateAsync"/>'s name and switch refusals without creating anything, so a create that must first do long
+    /// work (hyperv_vm_create fetching its image) fails before that work. Returns the warnings the create would add.
+    /// </summary>
+    public Task<JsonElement> CheckCreateAsync(string name, string? switchName, bool allowDuplicateName, CancellationToken ct)
+    {
+        VmName(name, "name");
+        var s = Script().Line("$__warnings = New-Object System.Collections.ArrayList");
+        CreateGuards(s, name, allowDuplicateName, switchName);
+        return runner.InvokeAsync(s.Returns("[ordered]@{ success = $true; warnings = @($__warnings) }"), ct);
     }
 
     public Task<JsonElement> InfoAsync(string machine, CancellationToken ct) => runner.InvokeAsync(Script().Vm(machine).Line("""
@@ -224,31 +277,11 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
 
         var s = Script()
             .Line("$__warnings = New-Object System.Collections.ArrayList")
-            .Line("$__created = New-Object System.Collections.ArrayList")
-            .Line("$__name = " + L(r.Name))
-            .Line("$__host = Get-VMHost")
+            .Line("$__created = New-Object System.Collections.ArrayList");
+        CreateGuards(s, r.Name, r.AllowDuplicateName, r.SwitchName);
+        s.Line("$__host = Get-VMHost")
             .Line("$__vmRoot = " + (r.Path is null ? "[string]$__host.VirtualMachinePath" : L(r.Path)))
-            .Line("$__vhdRoot = " + (r.Path is null ? "[string]$__host.VirtualHardDiskPath" : "[System.IO.Path]::Combine($__vmRoot, $__name, 'Virtual Hard Disks')"))
-            .Line("$__same = @(Hyper-V\\Get-VM | Where-Object { $_.Name -eq $__name })");
-        s.Line(r.AllowDuplicateName
-            ? "if ($__same.Count -gt 0) { [void]$__warnings.Add('Another VM already has this name; use this VM''s ID in later calls.') }"
-            : "if ($__same.Count -gt 0) { Stop-Control 'InvalidArgument' (\"A VM named '\" + $__name + \"' already exists (ID \" + $__same[0].Id + \"). Choose another name, or pass allowDuplicateName=true; later calls must then use the VM ID.\") }");
-
-        s.Line("$__switches = @(Get-VMSwitch)");
-        if (r.SwitchName is null)
-            s.Line($$"""
-                $__switch = @($__switches | Where-Object { [string]$_.Id -eq '{{VmScriptLibrary.DefaultSwitchId}}' }) | Select-Object -First 1
-                if ($null -eq $__switch) {
-                    $__switch = $__switches | Select-Object -First 1
-                    if ($null -eq $__switch) { [void]$__warnings.Add('No virtual switch exists; the network adapter is not connected.') }
-                    else { [void]$__warnings.Add("The Default Switch is missing; the network adapter is connected to '" + $__switch.Name + "'.") }
-                }
-                """);
-        else if (r.SwitchName.Length == 0) s.Line("$__switch = $null");
-        else s.Line("$__switch = @($__switches | Where-Object { $_.Name -eq " + L(r.SwitchName) + " })")
-            .Line("if ($__switch.Count -eq 0) { Stop-Control 'NotFound' ('Virtual switch ' + " + L(L(r.SwitchName)) + " + ' not found. Call hyperv_network action=list.') }")
-            .Line("if ($__switch.Count -gt 1) { Stop-Control 'AmbiguousName' 'Several virtual switches have that name.' }")
-            .Line("$__switch = $__switch[0]");
+            .Line("$__vhdRoot = " + (r.Path is null ? "[string]$__host.VirtualHardDiskPath" : "[System.IO.Path]::Combine($__vmRoot, $__name, 'Virtual Hard Disks')"));
 
         switch (source)
         {

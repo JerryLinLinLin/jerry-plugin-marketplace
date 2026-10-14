@@ -14,10 +14,12 @@ internal sealed partial class HyperVTools
         : job;
 
     [McpServerTool(Name = "hyperv_vm_create")]
-    [Description("Create a VM; it stays Off unless start=true. Defaults: Generation 2, 4096 MB static memory, 2 vCPUs, a 64 GB dynamic VHDX, Standard checkpoints with automatic checkpoints off, the Default Switch (else the first switch). The VM folder is <path>\\<name> (path defaults to the host VirtualMachinePath); new disks go to <path>\\<name>\\Virtual Hard Disks when path is given, else the host VirtualHardDiskPath. osFamily windows: Secure Boot with the MicrosoftWindows template and a vTPM with a local key protector; linux: Secure Boot with MicrosoftUEFICertificateAuthority and the HvSocket enhanced-session transport; other: Secure Boot off. Refuses an existing VM name (unless allowDuplicateName), an existing target disk file, a disk another VM uses, and a disk larger than the volume's free space, all before any change; a failed later step removes the half-created VM and its new disks. Returns the VM with firmware, security, createdFiles, warnings and nextSteps.")]
+    [Description("Create a VM; it stays Off unless start=true. Default source=image: a linked clone (seconds) of imageName or of the default image, Microsoft's Quick Create 'Windows 11 dev environment' (a Windows 11 Enterprise evaluation) unless HYPERV_CONTROL_DEFAULT_IMAGE names another; hyperv_image list shows it as defaultImage. An image not yet in the library is fetched by one hyperv_jobs job that then creates the VM (the job's result is the VM; waitSeconds bounds the wait): the Windows image's first use downloads 23.3 GB and extracts a 44.8 GB VHDX, needing about 69 GB free in the library (HYPERV_CONTROL_IMAGE_ROOT moves it), so confirm with the user first. The name, switch and target disk are checked before any download, and a running fetch of the same image is joined, never repeated. Image VMs take the image's OS family and Secure Boot setting; parameters only other sources use are refused. Other sources: new_disk (a 64 GB dynamic VHDX by default), iso, existing_vhd, linked, none. Defaults: Generation 2, 4096 MB static memory, 2 vCPUs, Standard checkpoints with automatic checkpoints off, the Default Switch (else the first switch). The VM folder is <path>\\<name> (path defaults to the host VirtualMachinePath); new disks go to <path>\\<name>\\Virtual Hard Disks when path is given (always for image clones), else the host VirtualHardDiskPath. osFamily windows: Secure Boot with the MicrosoftWindows template and a vTPM with a local key protector; linux: Secure Boot with MicrosoftUEFICertificateAuthority and the HvSocket enhanced-session transport; other: Secure Boot off. Refuses an existing VM name (unless allowDuplicateName), an existing target disk file, a disk another VM uses, and a disk larger than the volume's free space, all before any change; a failed later step removes the half-created VM and its new disks. Returns the VM with firmware, security, createdFiles, warnings and nextSteps; source=image returns {vm, disk, parent, started, warnings}, or the job (plus next while it runs).")]
     public Task<CallToolResult> CreateVm(string name,
-        [Description("new_disk (default: empty dynamic VHDX of diskGb) | iso (new disk plus a DVD drive with isoPath, set as first boot device) | existing_vhd (attach vhdPath) | linked (differencing disk over parentPath, which is marked read-only) | image (linked clone of the library entry imageName with that image's OS family and Secure Boot setting; same as hyperv_image deploy) | none (no disk)")] string source = "new_disk",
-        [Description("image: library entry name from hyperv_image list.")] string? imageName = null,
+        [Description("image (default: linked clone of imageName or the default image, fetched first as a job when not in the library; same as hyperv_image deploy) | new_disk (empty dynamic VHDX of diskGb) | iso (new disk plus a DVD drive with isoPath, set as first boot device) | existing_vhd (attach vhdPath) | linked (differencing disk over parentPath, which is marked read-only) | none (no disk)")] string source = "image",
+        [Description("image: a library entry, else a catalog image, by exact name from hyperv_image list. Omit for the default image (hyperv_image list shows it as defaultImage).")] string? imageName = null,
+        [Description("image: the catalog to search when the image name is in several catalogs.")] string? catalog = null,
+        [Description("image: seconds to wait for a fetch-then-create job before returning it (0-3600, default 60); then poll hyperv_jobs action=wait. A library image is deployed within the call.")] int waitSeconds = 60,
         [Description("existing_vhd: the disk to attach. new_disk/iso: optional target .vhdx path. linked: optional path of the differencing child.")] string? vhdPath = null,
         [Description("linked: the parent .vhdx; no VM may attach it.")] string? parentPath = null,
         [Description("iso: installation ISO.")] string? isoPath = null,
@@ -25,19 +27,34 @@ internal sealed partial class HyperVTools
         int generation = 2, int memoryMb = 4096, bool dynamicMemory = false, int? memoryMinMb = null, int? memoryMaxMb = null,
         int processors = 2, int diskGb = 64,
         [Description("Exact switch name. Omit for the Default Switch (or the first switch); an empty string leaves the adapter disconnected.")] string? switchName = null,
-        [Description("windows | linux | other; sets the Secure Boot, vTPM and enhanced-session defaults.")] string osFamily = "windows",
+        [Description("windows | linux | other; sets the Secure Boot, vTPM and enhanced-session defaults. source=image uses the image's OS family instead.")] string osFamily = "windows",
         [Description("Default: on for windows and linux, off for other.")] bool? secureBoot = null,
         [Description("Default: on for Generation 2 windows (local key protector).")] bool? tpm = null,
         string? notes = null, bool autoCheckpoints = false,
         [Description("Standard | Production | ProductionOnly | Disabled")] string checkpointType = "Standard",
         bool start = false, bool allowDuplicateName = false, CancellationToken ct = default) => Run(async () =>
     {
+        if (waitSeconds is < 0 or > 3600) throw new ArgumentException("waitSeconds must be between 0 and 3600.");
         if (source == "image")
         {
-            if (string.IsNullOrWhiteSpace(imageName)) throw new ArgumentException("source=image needs imageName: a library entry from hyperv_image list.");
-            return await service.Images.DeployAsync(new ImageDeployRequest(imageName, name, true, memoryMb, processors, switchName, notes, start, path), service.Lifecycle, ct);
+            // The default source must never turn a call meant for another source into a multi-GB download.
+            var unused = new (bool Given, string Name)[]
+            {
+                (vhdPath is not null, "vhdPath"), (parentPath is not null, "parentPath"), (isoPath is not null, "isoPath"), (generation != 2, "generation"),
+                (diskGb != 64, "diskGb"), (dynamicMemory, "dynamicMemory"), (memoryMinMb is not null, "memoryMinMb"), (memoryMaxMb is not null, "memoryMaxMb"),
+                (secureBoot is not null, "secureBoot"), (tpm is not null, "tpm"), (autoCheckpoints, "autoCheckpoints"), (checkpointType != "Standard", "checkpointType")
+            }.Where(p => p.Given).Select(p => p.Name).ToList();
+            if (unused.Count > 0)
+                throw new ArgumentException($"source=image (the default) does not use {string.Join(", ", unused)}: an image VM is a Generation 2 linked clone with the image's OS family and Secure Boot setting "
+                    + "and the lab defaults (static memory, Standard checkpoints, automatic checkpoints off). Pass source=new_disk, iso, existing_vhd, linked or none to use them, "
+                    + "or change the clone afterwards with hyperv_vm_configure and hyperv_firmware.");
+            return await service.Images.CreateVmAsync(imageName, catalog,
+                new ImageDeployRequest("", name, true, memoryMb, processors, switchName, notes, start, path, allowDuplicateName), service.Lifecycle, waitSeconds, ct);
         }
+        if (source is not ("new_disk" or "iso" or "existing_vhd" or "linked" or "none"))
+            throw new ArgumentException("source must be one of: image (the default), new_disk, iso, existing_vhd, linked, none.");
         if (imageName is not null) throw new ArgumentException("imageName applies only to source=image.");
+        if (catalog is not null) throw new ArgumentException("catalog applies only to source=image.");
         return await service.Lifecycle.CreateAsync(new VmCreateRequest(name)
         {
             Source = source, VhdPath = vhdPath, ParentPath = parentPath, IsoPath = isoPath, Path = path, Generation = generation,

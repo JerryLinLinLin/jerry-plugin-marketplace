@@ -603,7 +603,7 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
         var steps = new List<string>
         {
             $"Keep {plan.VhdPath} unchanged as the template: give each VM a differencing child (New-VHD -Differencing -ParentPath '{plan.VhdPath}') or a full copy. Booting the template itself runs specialize and consumes its unattend.",
-            "Create the VM with hyperv_vm_create: generation=2, vhdPath=<the child disk>, memoryMb=4096 (static), processors=2, and switchName set to a switch with internet access (for example Default Switch). It is created Off.",
+            "Create the VM with hyperv_vm_create: source=existing_vhd, vhdPath=<the child disk>, generation=2, memoryMb=4096 (static), processors=2, and switchName set to a switch with internet access (for example Default Switch). It is created Off.",
             "Before the first start: hyperv_vm_configure dynamicMemory=false checkpointType=Standard; turn automatic checkpoints off; "
                 + (w.KernelDebug is null ? "Secure Boot On with the MicrosoftWindows template" : "Secure Boot Off (hyperv_firmware secureBoot=false), because the image has kernel debugging enabled")
                 + "; add a vTPM with a local key protector (Set-VMKeyProtector -NewLocalKeyProtector, then Enable-VMTPM).",
@@ -624,7 +624,7 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
         return
         [
             $"Keep {plan.VhdPath} unchanged as the template: give each VM a differencing child or a full copy. Children of the never-booted template can share the seed ISO (and so its hostname).",
-            "Create the VM with hyperv_vm_create: generation=2, vhdPath=<the child disk>, memoryMb=2048, processors=2, switchName=<a switch with DHCP and internet access>.",
+            "Create the VM with hyperv_vm_create: source=existing_vhd, vhdPath=<the child disk>, generation=2, memoryMb=2048, processors=2, osFamily=linux, switchName=<a switch with DHCP and internet access>.",
             "Before the first start: Secure Boot On with the MicrosoftUEFICertificateAuthority template (Set-VMFirmware -SecureBootTemplate MicrosoftUEFICertificateAuthority; the Windows template rejects the Linux shim); checkpointType=Standard; automatic checkpoints off.",
             $"Attach the seed as a DVD: hyperv_disk action=attach_iso path={plan.SeedIsoPath}.",
             $"Start the VM. cloud-init creates {l.SshUser}, grows the root file system and installs {(l.Packages.Count == 0 ? "no packages" : string.Join(", ", l.Packages))}; linux-cloud-tools-virtual lets hyperv_vm_info report the guest IP (KVP). Then: ssh {l.SshUser}@<ip>."

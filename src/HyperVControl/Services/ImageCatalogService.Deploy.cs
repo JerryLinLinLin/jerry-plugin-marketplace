@@ -25,9 +25,7 @@ internal sealed partial class ImageCatalogService
             throw new ArgumentException($"'{entry.Name}' is an ISO (installation media), not a bootable disk. Create a VM with a new disk and attach the ISO instead.");
         if (!File.Exists(entry.Path)) throw new HyperVOperationException($"The file of '{entry.Name}' is missing: {entry.Path}.", "NotFound");
         var vmRoot = request.VmPath is null ? (await HostPathsAsync(ct)).VirtualMachinePath : ControlService.FullPath(request.VmPath);
-        var folder = Path.Combine(vmRoot, ImageFiles.SafeDirectoryName(vmName));
-        var directory = Path.Combine(folder, "Virtual Hard Disks");
-        var disk = Path.Combine(directory, ImageFiles.SafeDirectoryName(vmName) + ".vhdx");
+        var (folder, directory, disk) = DeployPaths(vmRoot, vmName);
         if (File.Exists(disk)) throw new HyperVOperationException($"{disk} already exists; choose another vmName or vmPath.", "AlreadyExists");
         var warnings = new List<string>(entry.Warnings ?? []);
         var createdFolder = !Directory.Exists(folder);
@@ -63,7 +61,8 @@ internal sealed partial class ImageCatalogService
                 OsFamily = osFamily,
                 SecureBoot = entry.Config.SecureBoot,
                 Notes = request.Notes,
-                Start = request.Start
+                Start = request.Start,
+                AllowDuplicateName = request.AllowDuplicateName
             }, ct);
             vmId = created.GetProperty("Id").GetString() ?? throw new HyperVOperationException("New-VM returned no VM ID.", "InvalidResponse");
             ownsDisk = true;
@@ -91,6 +90,14 @@ internal sealed partial class ImageCatalogService
             await RollbackAsync(vmId, ownsDisk ? disk : null, createdFolder ? folder : directory);
             throw;
         }
+    }
+
+    /// <summary>Where a deploy puts the VM: &lt;vmRoot&gt;\&lt;vmName&gt;, its disk at Virtual Hard Disks\&lt;vmName&gt;.vhdx.</summary>
+    private static (string Folder, string Directory, string Disk) DeployPaths(string vmRoot, string vmName)
+    {
+        var folder = Path.Combine(vmRoot, ImageFiles.SafeDirectoryName(vmName));
+        var directory = Path.Combine(folder, "Virtual Hard Disks");
+        return (folder, directory, Path.Combine(directory, ImageFiles.SafeDirectoryName(vmName) + ".vhdx"));
     }
 
     private static async Task<ImageLibraryEntry> ProtectParentAsync(ImageLibraryStore store, ImageLibraryEntry entry, CancellationToken ct) =>

@@ -21,11 +21,12 @@ internal sealed record ImageDeployment(string VmName, string? VmId, string DiskP
 /// <summary>
 /// One library entry: a .vhdx or .iso on the host, either fetched from a catalog (the library owns the file)
 /// or registered in place. <see cref="ReadOnly"/> records that the library set the file's read-only attribute
-/// because it is (or is meant to be) a differencing parent.
+/// because it is (or is meant to be) a differencing parent. Unknown properties in library.json (such as the
+/// <c>expired</c> flag older builds wrote) are ignored on read.
 /// </summary>
 internal sealed record ImageLibraryEntry(
     string Name, string Kind, string OsFamily, string Path, string Format, ImageSource Source, ImageSizes Sizes, ImageConfig Config,
-    DateTimeOffset RegisteredAt, bool ReadOnly = false, bool Expired = false, string? Notes = null, string? ArchivePath = null,
+    DateTimeOffset RegisteredAt, bool ReadOnly = false, string? Notes = null, string? ArchivePath = null,
     IReadOnlyList<string>? Warnings = null, IReadOnlyList<ImageDeployment>? Deployments = null);
 
 internal sealed record ImageLibraryIndex(int Version, IReadOnlyList<ImageLibraryEntry> Entries)
