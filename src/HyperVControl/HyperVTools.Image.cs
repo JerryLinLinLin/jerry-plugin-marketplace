@@ -10,7 +10,7 @@ namespace HyperVControl;
 internal sealed partial class HyperVTools
 {
     [McpServerTool(Name = "hyperv_jobs")]
-    [Description("List, inspect, wait for or cancel background jobs (image fetches) owned by this MCP process; jobs end with it. action=list|status|wait|cancel; jobId for status/wait/cancel; waitSeconds (0-3600, default 30) bounds wait and how long cancel waits for cleanup. A job reports status (queued, running, succeeded, failed, cancelled), progress {percent, bytesDone, bytesTotal, message}, result, error and errorType. Cancelling a fetch deletes its partial download and extraction output; an interrupted download keeps its partial file and the next fetch resumes it.")]
+    [Description("List, inspect, wait for or cancel background jobs (image fetches, hyperv_vm_create quick creates that fetch their image, full clones, exports, imports, image builds) owned by this MCP process; jobs end with it. action=list|status|wait|cancel; jobId for status/wait/cancel; waitSeconds (0-3600, default 30) bounds wait and how long cancel waits for cleanup. A job reports status (queued, running, succeeded, failed, cancelled), progress {percent, bytesDone, bytesTotal, message}, result, error and errorType. Cancelling a fetch (or a quick create while it downloads) deletes its partial download and extraction output; an interrupted download keeps its partial file and the next fetch resumes it.")]
     public Task<CallToolResult> JobsTool(string action = "list", string? jobId = null, int waitSeconds = 30, CancellationToken ct = default) => Run(async () =>
     {
         if (waitSeconds is < 0 or > 3600) throw new ArgumentException("waitSeconds must be between 0 and 3600.");
@@ -30,11 +30,11 @@ internal sealed partial class HyperVTools
     });
 
     [McpServerTool(Name = "hyperv_image", Destructive = true, OpenWorld = true)]
-    [Description("Image catalogs, the local image library and VM deployment from it. action=list: catalog images (Microsoft's Quick Create gallery plus custom catalogs) and library entries with warnings (expired evaluations, stale or unsupported releases, missing hashes) and a recommendation; never downloads a disk. fetch: imageName (catalog to disambiguate) runs a hyperv_jobs job that downloads with resume, verifies SHA-256 and magic bytes, extracts the .vhdx into the library and deletes the archive unless keepArchive; waitSeconds (0-3600) waits for it. register: adopt a local .vhdx/.iso at path as name (osFamily windows|linux|other, kind image|template, secureBoot, notes) without copying. remove: name, deleteFile; refused while a VM attaches the file or a disk uses it as a differencing parent. catalogs: catalogAction list|add|remove with location (http(s) URL, file, or UNC path to a gallery JSON) and catalog (name). deploy: imageName (library entry), vmName, linked (differencing child, default) or a full copy, memoryMb, processors, switchName (default: the Default Switch), vmPath, notes, start; applies lab defaults: static memory, automatic checkpoints off, Standard checkpoints, Secure Boot per OS family, HvSocket for Linux, vTPM for Windows. Library root: <host VHD path>\\HyperVControl\\Images or HYPERV_CONTROL_IMAGE_ROOT.")]
+    [Description("Image catalogs, the local image library and VM deployment from it. action=list: catalog images (Microsoft's Quick Create gallery plus custom catalogs) and library entries with warnings (evaluation editions, stale or unsupported releases, missing hashes), a recommendation, and defaultImage {name, catalog, inLibrary, source}: the image hyperv_vm_create uses without imageName (HYPERV_CONTROL_DEFAULT_IMAGE, else the recommended Windows catalog image, Microsoft's Windows 11 dev environment); inLibrary null means its first use downloads it. Never downloads a disk. fetch: imageName (catalog to disambiguate) runs a hyperv_jobs job that downloads with resume, verifies SHA-256 and magic bytes, extracts the .vhdx into the library and deletes the archive unless keepArchive; waitSeconds (0-3600) waits for it. register: adopt a local .vhdx/.iso at path as name (osFamily windows|linux|other, kind image|template, secureBoot, notes) without copying. remove: name, deleteFile; refused while a VM attaches the file or a disk uses it as a differencing parent. catalogs: catalogAction list|add|remove with location (http(s) URL, file, or UNC path to a gallery JSON) and catalog (name). deploy: imageName (library entry; omit for the default image once it is in the library), vmName, linked (differencing child, default) or a full copy, memoryMb, processors, switchName (default: the Default Switch), vmPath, notes, start; applies lab defaults: static memory, automatic checkpoints off, Standard checkpoints, Secure Boot per OS family, HvSocket for Linux, vTPM for Windows. hyperv_vm_create does the same and also fetches a catalog image first. Library root: <host VHD path>\\HyperVControl\\Images or HYPERV_CONTROL_IMAGE_ROOT.")]
     public Task<CallToolResult> ImageTool(
         [Description("list | fetch | register | remove | catalogs | deploy")] string action = "list",
-        [Description("fetch: catalog image name; deploy: library entry name")] string? imageName = null,
-        [Description("fetch: catalog to search; catalogs add/remove: catalog name")] string? catalog = null,
+        [Description("fetch: catalog image name; deploy: library entry name (omit for the default image)")] string? imageName = null,
+        [Description("fetch, and deploy without imageName: catalog to search; catalogs add/remove: catalog name")] string? catalog = null,
         [Description("fetch: keep the downloaded zip in the cache after extraction")] bool keepArchive = false,
         [Description("fetch: seconds to wait for the job (0-3600); 0 returns the job at once")] int waitSeconds = 0,
         [Description("register: absolute path of a local .vhdx or .iso")] string? path = null,
@@ -60,8 +60,8 @@ internal sealed partial class HyperVTools
         "register" => await service.Images.RegisterAsync(path, name, osFamily, kind, secureBoot, notes, ct),
         "remove" => await service.Images.RemoveAsync(name ?? imageName, deleteFile, ct),
         "catalogs" => await service.Images.CatalogsAsync(catalogAction, catalog, location, ct),
-        "deploy" => await service.Images.DeployAsync(new ImageDeployRequest(imageName ?? "", vmName ?? "", linked, memoryMb, processors, switchName, notes, start, vmPath),
-            service.Lifecycle, ct),
+        "deploy" => await service.Images.DeployFromLibraryAsync(new ImageDeployRequest(imageName ?? "", vmName ?? "", linked, memoryMb, processors, switchName, notes, start, vmPath),
+            catalog, service.Lifecycle, ct),
         _ => throw new ArgumentException("Use list, fetch, register, remove, catalogs or deploy.")
     });
 }

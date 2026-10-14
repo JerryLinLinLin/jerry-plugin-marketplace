@@ -77,8 +77,14 @@ if (args[0] is "smoke" or "launcher")
 {
     var invalid = await Call("hyperv_power", new {machine="__missing_hypervcontrol_test_vm__",action="delete_everything"}, true);
     Check(invalid.GetProperty("ok").GetBoolean() == false, "Tool errors are structured MCP errors");
-    var paths = await Call("hyperv_vm_create", new {name="not-created",path="relative",vhdPath="relative"}, true);
+    var paths = await Call("hyperv_vm_create", new {name="not-created",source="new_disk",path="relative",vhdPath="relative"}, true);
     Check(paths.GetProperty("ok").GetBoolean() == false, "Invalid path rejected before host mutation");
+    var imagePath = await Call("hyperv_vm_create", new {name="not-created",path="relative"}, true, "hyperv_vm_create-default-image-path");
+    Check(imagePath.GetProperty("ok").GetBoolean() == false && imagePath.GetProperty("errorType").GetString() == "ArgumentException",
+        "The default source=image rejects an invalid path before resolving or downloading an image");
+    var otherSource = await Call("hyperv_vm_create", new {name="not-created",diskGb=10}, true, "hyperv_vm_create-default-image-unused");
+    Check(otherSource.GetProperty("ok").GetBoolean() == false && otherSource.GetProperty("error").GetString()!.Contains("source=new_disk"),
+        "The default source=image refuses another source's parameters instead of downloading an image");
     if (args[0] == "smoke")
     {
         var answered = (await Call("hyperv_capabilities")).GetProperty("process");

@@ -54,7 +54,7 @@ internal static class LifecycleLiveTests
             string? diskA = null;
             await Run("create new_disk (Windows defaults, 1 GB disk, disconnected)", async () =>
             {
-                var vm = await Tool("create-a", "hyperv_vm_create", new { name = a, path = folder, diskGb = 1, memoryMb = 1024, switchName = "" });
+                var vm = await Tool("create-a", "hyperv_vm_create", new { name = a, path = folder, source = "new_disk", diskGb = 1, memoryMb = 1024, switchName = "" });
                 diskA = vm.GetProperty("createdFiles")[0].GetString();
                 Expect(vm.GetProperty("State").GetString() == "Off" && vm.GetProperty("Generation").GetInt32() == 2 && vm.GetProperty("ProcessorCount").GetInt32() == 2
                     && vm.GetProperty("MemoryStartup").GetInt64() == 1L << 30 && !vm.GetProperty("DynamicMemoryEnabled").GetBoolean()
@@ -316,7 +316,7 @@ internal static class LifecycleLiveTests
 
             await Run("remove with deleteDisks merges checkpoints first", async () =>
             {
-                await Tool("create-d", "hyperv_vm_create", new { name = d, path = folder, diskGb = 1, memoryMb = 512, tpm = false, switchName = "" });
+                await Tool("create-d", "hyperv_vm_create", new { name = d, path = folder, source = "new_disk", diskGb = 1, memoryMb = 512, tpm = false, switchName = "" });
                 await Tool("checkpoint-d-1", "hyperv_checkpoint", new { machine = d, action = "create", checkpoint = "one" });
                 await Tool("checkpoint-d-2", "hyperv_checkpoint", new { machine = d, action = "create", checkpoint = "two" });
                 var before = await Tool("info-d-checkpoints", "hyperv_vm_info", new { machine = d });

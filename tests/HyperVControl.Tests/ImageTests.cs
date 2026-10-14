@@ -15,7 +15,9 @@ namespace HyperVControl.Tests;
 /// <summary>
 /// Image catalog, library, fetch jobs and deploy against the recording mock module and a loopback HTTP
 /// server: the saved live gallery feed, a UTF-8 custom catalog, Zip64 central directories, resume after an
-/// interrupted download, cancellation cleanup, hash mismatches, the in-use guard and deploy rendering.
+/// interrupted download, cancellation cleanup, hash mismatches, the in-use guard, deploy rendering, the default
+/// image and hyperv_vm_create's one-call quick create (fetch-then-deploy jobs, joined fetches, preflight refusals).
+/// No test catalog that hyperv_vm_create can reach points at a real download URL.
 /// </summary>
 internal static class ImageTests
 {
@@ -29,6 +31,8 @@ internal static class ImageTests
         var temp = Path.Combine(Path.GetTempPath(), "HyperVControl-images-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temp);
         var previousRoot = Environment.GetEnvironmentVariable(ImageCatalogService.RootVariable);
+        var previousDefault = Environment.GetEnvironmentVariable(ImageCatalogService.DefaultImageVariable);
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, null);
         try
         {
             ParseFeeds(check);
@@ -39,6 +43,7 @@ internal static class ImageTests
         finally
         {
             Environment.SetEnvironmentVariable(ImageCatalogService.RootVariable, previousRoot);
+            Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, previousDefault);
             foreach (var file in Directory.EnumerateFiles(temp, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
             try { Directory.Delete(temp, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
@@ -55,15 +60,25 @@ internal static class ImageTests
         var jammy = feed.Images.Single(i => i.Name == "Ubuntu 22.04 LTS");
         check(jammy.SecureBoot == false && jammy.EnhancedSessionTransportType == "HvSocket" && jammy.OsFamily == "linux"
             && jammy.Sha256 == "eb6b904aa40f7214bdeade25e7b189db8c25a021b711677c1049d61867ff20cf" && jammy.ArchiveRelativePath == "livecd.ubuntu-desktop-hyperv.vhdx"
-            && jammy.DiskExtension == ".zip" && jammy.Fetchable && jammy.Stale && !jammy.Expired && !jammy.EndOfLife,
+            && jammy.DiskExtension == ".zip" && jammy.Fetchable && jammy.Stale && !jammy.EndOfLife && !jammy.Warnings.Any(w => w.StartsWith("Evaluation edition")),
             "Ubuntu 22.04: string secureBoot, HvSocket, SHA-256 from the prefixed hash, stale but still supported");
         var windev = feed.Images.Single(i => i.Name == "Windows 11 dev environment");
-        check(windev.Expired && windev.OsFamily == "windows" && windev.SecureBoot == true
-            && windev.Warnings.Any(w => w.StartsWith("Expired evaluation") && w.Contains("WinDev2407Eval") && w.Contains("2024-10-23")),
-            "The Windows 11 dev environment is flagged as the WinDev2407Eval evaluation that expired on 2024-10-23");
+        var evaluation = windev.Warnings.Where(w => w.StartsWith("Evaluation edition:")).ToList();
+        check(windev.Fetchable && !windev.Stale && !windev.EndOfLife && windev.OsFamily == "windows" && windev.SecureBoot == true && windev.Version == "10.0.22621"
+            && windev.Sha256 == "b546c32894785dbaac07543d913bde9d6598972f76a440d6b5c00b2e73739684" && windev.ArchiveRelativePath == "WinDev2407Eval.vhdx"
+            && evaluation.Count == 1 && evaluation[0].StartsWith("Evaluation edition: Windows 11 Enterprise Evaluation, last updated 2024-07-25.")
+            && evaluation[0].Contains("Hyper-V Quick Create still downloads and runs it") && evaluation[0].Contains("run `slmgr /xpr` inside the guest for the end date")
+            && evaluation[0].Contains("take a checkpoint after the first boot and recreate the VM from the image when it expires")
+            && !windev.Warnings.Any(w => w.Contains("expired", StringComparison.OrdinalIgnoreCase) || w.Contains("black desktop") || w.Contains("shuts down")),
+            "The Windows 11 dev environment is fetchable and current, with one evaluation-edition warning and no expiry verdict");
+        var later = ImageCatalogFeed.Parse("microsoft", ImageCatalogFeed.Decode(bytes), Host, new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero))
+            .Images.Single(i => i.Name == "Windows 11 dev environment");
+        check(later.Fetchable && later.Stale && later.Warnings.Count(w => w.StartsWith("Evaluation edition:")) == 1,
+            "No date turns the evaluation into an excluded image: parsed in 2030 it is only stale");
         var msix = feed.Images.Single(i => i.Name.StartsWith("Windows 10 MSIX"));
-        check(msix.Expired && msix.DiskExtension == ".zip" && msix.Warnings.Any(w => w.StartsWith("Likely expired evaluation")),
-            "The Windows 10 MSIX evaluation is flagged as likely expired, and its URI with spaces still parses");
+        check(msix.Fetchable && msix.Stale && msix.DiskExtension == ".zip"
+            && msix.Warnings.Any(w => w.StartsWith("Evaluation edition: Windows 10 Enterprise Evaluation, last updated 2022-05-11.")),
+            "The Windows 10 MSIX environment carries the same evaluation warning (and is stale), and its URI with spaces still parses");
         var bionic = feed.Images.Single(i => i.Name == "Ubuntu 18.04 LTS");
         check(bionic.EndOfLife && bionic.Stale && bionic.Warnings.Any(w => w.Contains("May 2023")), "Ubuntu 18.04 is flagged out of standard support");
 
@@ -205,10 +220,37 @@ internal static class ImageTests
             && server.Requests.All(r => r.Path.StartsWith("/feeds/")),
             "list merges catalogs with per-image warnings and reads only the feeds, never a disk URL");
         var recommended = list.GetProperty("recommended");
-        check(recommended.GetProperty("linux").GetProperty("name").GetString() == "Test Linux" && recommended.GetProperty("windows").ValueKind == JsonValueKind.Null
-            && recommended.GetProperty("hint").GetString()!.Contains("expired")
-            && images.Single(i => i.GetProperty("name").GetString() == "Windows 11 dev environment").GetProperty("expired").GetBoolean(),
-            "The recommendation picks the newest supported Linux image and steers Windows away from the expired evaluations");
+        var windowsImage = images.Single(i => i.GetProperty("name").GetString() == "Windows 11 dev environment");
+        check(recommended.GetProperty("linux").GetProperty("name").GetString() == "Test Linux"
+            && recommended.GetProperty("windows").GetProperty("name").GetString() == "Windows 11 dev environment" && recommended.GetProperty("windows").GetProperty("catalog").GetString() == "mirror"
+            && !recommended.GetProperty("hint").GetString()!.Contains("expired") && recommended.GetProperty("hint").GetString()!.Contains("For Windows, fetch 'Windows 11 dev environment'")
+            && windowsImage.GetProperty("recommended").GetBoolean() && windowsImage.GetProperty("fetchable").GetBoolean() && !windowsImage.TryGetProperty("expired", out _)
+            && windowsImage.GetProperty("warnings").EnumerateArray().Any(w => w.GetString()!.StartsWith("Evaluation edition")),
+            "The recommendation picks the newest supported Linux image and Microsoft's Windows 11 dev environment for Windows; no image is flagged expired");
+        var defaultImage = list.GetProperty("defaultImage");
+        check(defaultImage.GetProperty("name").GetString() == "Windows 11 dev environment" && defaultImage.GetProperty("catalog").GetString() == "mirror"
+            && defaultImage.GetProperty("inLibrary").ValueKind == JsonValueKind.Null && defaultImage.GetProperty("source").GetString() == "recommended windows catalog image",
+            "list names the default image: the recommended Windows catalog image, not yet in the library");
+
+        // The default image: HYPERV_CONTROL_DEFAULT_IMAGE names a library entry or a catalog image; otherwise the recommended Windows image.
+        var resolved = await service.Images.ResolveDefaultImageAsync(null, default);
+        check(resolved.Entry is null && resolved.Image?.Name == "Windows 11 dev environment" && resolved.Source?.Name == "mirror"
+            && resolved.Origin == ImageCatalogService.RecommendedWindowsOrigin,
+            "Without HYPERV_CONTROL_DEFAULT_IMAGE the default image is the recommended Windows catalog image, to be fetched");
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, "test linux");
+        var configured = await service.Images.ResolveDefaultImageAsync(null, default);
+        var (_, configuredList) = await Call(tools.ImageTool("list"));
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, "No Such Image");
+        var missingDefault = await Expect(() => service.Images.ResolveDefaultImageAsync(null, default));
+        var (missingListFailed, missingList) = await Call(tools.ImageTool("list"));
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, null);
+        check(configured.Entry is null && configured.Image?.Name == "Test Linux" && configured.Source?.Name == "custom-catalog" && configured.Origin == "HYPERV_CONTROL_DEFAULT_IMAGE"
+            && configuredList.GetProperty("defaultImage").GetProperty("name").GetString() == "Test Linux"
+            && configuredList.GetProperty("defaultImage").GetProperty("source").GetString() == "HYPERV_CONTROL_DEFAULT_IMAGE"
+            && missingDefault?.ErrorType == "NotFound" && missingDefault.Message.Contains("HYPERV_CONTROL_DEFAULT_IMAGE is 'No Such Image'")
+            && !missingListFailed && missingList.GetProperty("defaultImage").GetProperty("error").GetString()!.Contains("No Such Image")
+            && missingList.GetProperty("defaultImage").GetProperty("name").ValueKind == JsonValueKind.Null,
+            "HYPERV_CONTROL_DEFAULT_IMAGE picks a catalog image by exact, case-insensitive name; an unknown name is a clear NotFound that list reports without failing");
 
         // Fetch end to end: redirect, tail probe, download, hash, magic, extraction, index, cache cleanup.
         var (fetchFailed, fetched) = await Call(tools.ImageTool("fetch", imageName: "Test Linux", waitSeconds: 60));
@@ -225,6 +267,11 @@ internal static class ImageTests
         check(library["entries"]!.AsArray().Single()!["name"]!.GetValue<string>() == "Test Linux", "library.json records the entry");
         var (_, again) = await Call(tools.ImageTool("fetch", imageName: "test linux"));
         check(again.GetProperty("alreadyInLibrary").GetBoolean(), "A second fetch of the same image returns the library entry without downloading");
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, "TEST LINUX");
+        var fromLibrary = await service.Images.ResolveDefaultImageAsync(null, default);
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, null);
+        check(fromLibrary.Entry?.Name == "Test Linux" && fromLibrary.Image is null && fromLibrary.Origin == "HYPERV_CONTROL_DEFAULT_IMAGE",
+            "HYPERV_CONTROL_DEFAULT_IMAGE naming a library entry resolves to that entry before any catalog");
 
         // An interrupted download keeps its partial file; the next fetch resumes it with a Range request.
         var (interruptFailed, firstTry) = await Call(tools.ImageTool("fetch", imageName: "Test Interrupt", waitSeconds: 60));
@@ -401,6 +448,8 @@ internal static class ImageTests
         check(inUse && Relation(inUseResult) is "differencingParent" or "attached" && File.Exists(template),
             "A template with a deployed linked clone cannot be removed");
 
+        await QuickCreateScenarios(check, temp, server, service, tools, mock, root, vms, template, Sha(testZip));
+
         // hyperv_jobs: list, status, wait, unknown IDs.
         var (_, jobs) = await Call(tools.JobsTool());
         var statuses = jobs.GetProperty("jobs").EnumerateArray().Select(j => j.GetProperty("status").GetString()).ToList();
@@ -413,6 +462,163 @@ internal static class ImageTests
             && waited.GetProperty("status").GetString() == "succeeded" && waited.GetProperty("progress").GetProperty("percent").GetDouble() == 100
             && unknown && unknownResult.GetProperty("errorType").GetString() == "ArgumentException" && badWait,
             "hyperv_jobs lists, reports and waits on jobs with camelCase statuses and rejects unknown IDs and unbounded waits");
+    }
+
+    /// <summary>
+    /// hyperv_vm_create's default source=image against local fixtures only: the mirror of Microsoft's feed is removed first, so the
+    /// default image is a small local Windows evaluation fixture. Covers refusals before any job or download, the fetch-then-deploy
+    /// job, the in-call library deploy, imageName naming a catalog image, HYPERV_CONTROL_DEFAULT_IMAGE (by name and by SHA-256),
+    /// allowDuplicateName, and a running fetch that later calls join instead of downloading again.
+    /// </summary>
+    private static async Task QuickCreateScenarios(Action<bool, string> check, string temp, FixtureServer server, ControlService service, HyperVTools tools,
+        MockHyperV mock, string root, string vms, string template, string testLinuxSha)
+    {
+        var quickWin = Payload(10, 400_000);
+        var quickWinZip = Zip(("Images/Quick.vhdx", quickWin));
+        var namedZip = Zip(("named.vhdx", Payload(11, 300_000)));
+        var holdZip = Zip(("hold.vhdx", Payload(12, 2_000_000)));
+        server.Add("/images/quick-win.zip", quickWinZip);
+        server.Add("/images/quick-named.zip", namedZip);
+        server.Add("/images/hold.zip", holdZip);
+        server.Hold("/images/hold.zip", 500_000);
+        var recent = DateTimeOffset.UtcNow.AddDays(-3).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var quickCatalog = Path.Combine(temp, "quick catalog.json");
+        await File.WriteAllTextAsync(quickCatalog, $$"""
+            { "images": [
+              { "name": "Test Windows Quick", "publisher": "Microsoft", "version": "10.0.26100", "lastUpdated": "{{recent}}",
+                "description": "Synthetic evaluation copy of Windows for quick create tests.", "config": { "secureBoot": "true" },
+                "details": [ { "name": "Edition", "value": "Windows 11 Enterprise" } ],
+                "disk": { "uri": "{{server.BaseUrl}}images/quick-win.zip", "hash": "sha256:{{Sha(quickWinZip)}}", "archiveRelativePath": "Images/Quick.vhdx" } },
+              { "name": "Test Quick Named", "publisher": "Contoso", "lastUpdated": "{{recent}}", "config": { "secureBoot": "false" },
+                "disk": { "uri": "{{server.BaseUrl}}images/quick-named.zip", "hash": "sha256:{{Sha(namedZip)}}", "archiveRelativePath": "named.vhdx" } },
+              { "name": "Test Quick Hold", "publisher": "Contoso", "lastUpdated": "{{recent}}",
+                "disk": { "uri": "{{server.BaseUrl}}images/hold.zip", "hash": "sha256:{{Sha(holdZip)}}", "archiveRelativePath": "hold.vhdx" } },
+              { "name": "Test Linux Copy", "publisher": "Canonical Group Ltd", "lastUpdated": "{{recent}}",
+                "disk": { "uri": "{{server.BaseUrl}}go/test", "hash": "sha256:{{testLinuxSha}}", "archiveRelativePath": "disk/TEST-image.vhdx" } }
+            ] }
+            """, new UTF8Encoding(false));
+        // Only local fixtures from here on: the mirror's Windows 11 dev environment points at Microsoft's real 23 GB download.
+        var (_, removedMirror) = await Call(tools.ImageTool("catalogs", catalogAction: "remove", catalog: "mirror"));
+        var (_, quickAdded) = await Call(tools.ImageTool("catalogs", catalogAction: "add", catalog: "quick", location: quickCatalog));
+        var (_, before) = await Call(tools.ImageTool("list"));
+        var quickDefault = before.GetProperty("defaultImage");
+        check(removedMirror.GetProperty("removed").GetBoolean() && quickAdded.GetProperty("images").GetArrayLength() == 4
+            && quickDefault.GetProperty("name").GetString() == "Test Windows Quick" && quickDefault.GetProperty("catalog").GetString() == "quick"
+            && quickDefault.GetProperty("inLibrary").ValueKind == JsonValueKind.Null && quickDefault.GetProperty("source").GetString() == "recommended windows catalog image",
+            "The default image follows the recommendation to the newest Windows catalog image, here a local evaluation fixture");
+
+        // Refusals that need no image come before any job or download.
+        var jobsBefore = service.Jobs.List().Count;
+        var (tooLong, tooLongResult) = await Call(tools.CreateVm("Lab Refused", waitSeconds: 3601));
+        var (negative, _) = await Call(tools.CreateVm("Lab Refused", waitSeconds: -1));
+        var (otherSource, otherSourceResult) = await Call(tools.CreateVm("Lab Refused", diskGb: 10, isoPath: Path.Combine(temp, "setup.iso")));
+        var (relative, _) = await Call(tools.CreateVm("Lab Refused", path: "relative"));
+        var (badName, _) = await Call(tools.CreateVm("bad/name", path: vms));
+        var (misplacedCatalog, _) = await Call(tools.CreateVm("Lab Refused", source: "none", catalog: "quick"));
+        var (unknownSource, unknownSourceResult) = await Call(tools.CreateVm("Lab Refused", source: "Image"));
+        var (diskTaken, diskTakenResult) = await Call(tools.CreateVm("Lab Win", imageName: "Test Quick Named", path: vms));
+        var elsewhere = Path.Combine(temp, "preflight");
+        var (duplicate, duplicateResult) = await Call(tools.CreateVm("Lab Win", imageName: "Test Quick Named", path: elsewhere));
+        var (noSwitch, noSwitchResult) = await Call(tools.CreateVm("Lab No Switch", imageName: "Test Quick Named", path: elsewhere, switchName: "Nope"));
+        var (deployFailed, deployResult) = await Call(tools.ImageTool("deploy", vmName: "Lab Deploy Default", vmPath: vms));
+        check(tooLong && tooLongResult.GetProperty("error").GetString()!.Contains("waitSeconds") && negative
+            && otherSource && otherSourceResult.GetProperty("error").GetString()!.Contains("does not use isoPath, diskGb") && relative && badName && misplacedCatalog
+            && unknownSource && unknownSourceResult.GetProperty("error").GetString()!.Contains("image (the default), new_disk")
+            && diskTaken && diskTakenResult.GetProperty("errorType").GetString() == "AlreadyExists"
+            && duplicate && duplicateResult.GetProperty("errorType").GetString() == "InvalidArgument" && duplicateResult.GetProperty("error").GetString()!.Contains("A VM named 'Lab Win' already exists")
+            && noSwitch && noSwitchResult.GetProperty("errorType").GetString() == "NotFound" && !Directory.Exists(elsewhere)
+            && deployFailed && deployResult.GetProperty("errorType").GetString() == "NotFound" && deployResult.GetProperty("error").GetString()!.Contains("hyperv_vm_create")
+            && service.Jobs.List().Count == jobsBefore && !server.Requests.Any(r => r.Path.StartsWith("/images/quick", StringComparison.Ordinal)),
+            "waitSeconds, an unknown source, other sources' parameters, bad paths and names, an existing disk, a duplicate VM name and a missing switch are refused before any job or download; deploy without imageName points at hyperv_vm_create");
+
+        // The default image is not in the library: one job fetches it and then deploys it; the job's result is the VM.
+        mock.ClearCalls();
+        var (quickFailed, quick) = await Call(tools.CreateVm("Lab Quick", path: vms, notes: "quick notes"));
+        var quickPath = Path.Combine(root, "Test-Windows-Quick.vhdx");
+        var quickCalls = mock.Calls();
+        var quickResult = quick.GetProperty("result");
+        check(!quickFailed && quick.GetProperty("name").GetString() == "quick create Lab Quick" && quick.GetProperty("status").GetString() == "succeeded"
+            && quick.GetProperty("progress").GetProperty("message").GetString() == "done" && quick.GetProperty("progress").GetProperty("percent").GetDouble() == 100
+            && quickResult.GetProperty("vm").GetProperty("Name").GetString() == "Lab Quick" && quickResult.GetProperty("disk").GetProperty("type").GetString() == "differencing"
+            && quickResult.GetProperty("parent").GetProperty("name").GetString() == "Test Windows Quick" && quickResult.GetProperty("parent").GetProperty("path").GetString() == quickPath
+            && File.ReadAllBytes(quickPath).AsSpan().SequenceEqual(quickWin) && File.GetAttributes(quickPath).HasFlag(FileAttributes.ReadOnly)
+            && quickCalls.Single(c => c.Cmdlet == "New-VHD").Parameters.GetProperty("ParentPath").GetString() == quickPath
+            && quickCalls.Single(c => c.Cmdlet == "Set-VM").Parameters.GetProperty("Notes").GetString() == "quick notes" && quickCalls.Any(c => c.Cmdlet == "Enable-VMTPM")
+            && quickResult.GetProperty("warnings").EnumerateArray().Any(w => w.GetString()!.StartsWith("Evaluation edition: Windows 11 Enterprise Evaluation"))
+            && server.Requests.Count(r => r.Path == "/images/quick-win.zip" && r.Range is null) == 1,
+            "hyperv_vm_create without source fetches the default image in one quick-create job, then deploys a Windows linked clone; the job's result is the VM");
+
+        mock.ClearCalls();
+        var (secondFailed, second) = await Call(tools.CreateVm("Lab Quick 2", path: vms, start: true));
+        var (_, deployedDefault) = await Call(tools.ImageTool("deploy", vmName: "Lab Deploy Default", vmPath: vms));
+        var (_, after) = await Call(tools.ImageTool("list"));
+        check(!secondFailed && !second.TryGetProperty("status", out _) && second.GetProperty("vm").GetProperty("Name").GetString() == "Lab Quick 2"
+            && second.GetProperty("disk").GetProperty("parentPath").GetString() == quickPath && second.GetProperty("started").GetBoolean()
+            && deployedDefault.GetProperty("parent").GetProperty("name").GetString() == "Test Windows Quick"
+            && after.GetProperty("defaultImage").GetProperty("inLibrary").GetString() == "Test Windows Quick"
+            && server.Requests.Count(r => r.Path == "/images/quick-win.zip" && r.Range is null) == 1,
+            "With the default image in the library, hyperv_vm_create without source and hyperv_image deploy without imageName are in-call linked clones; nothing downloads again");
+
+        // imageName naming a catalog image takes the same job path, with that image's settings.
+        mock.ClearCalls();
+        var (namedFailed, named) = await Call(tools.CreateVm("Lab Named", imageName: "test quick named", catalog: "quick", path: vms));
+        var namedPath = Path.Combine(root, "Test-Quick-Named.vhdx");
+        check(!namedFailed && named.GetProperty("name").GetString() == "quick create Lab Named" && named.GetProperty("status").GetString() == "succeeded"
+            && named.GetProperty("result").GetProperty("vm").GetProperty("Name").GetString() == "Lab Named"
+            && named.GetProperty("result").GetProperty("parent").GetProperty("path").GetString() == namedPath && File.Exists(namedPath)
+            && mock.Calls().Any(c => c.Cmdlet == "Set-VMFirmware" && c.Parameters.TryGetProperty("EnableSecureBoot", out var e) && e.GetString() == "Off") && !mock.Called("Enable-VMTPM"),
+            "imageName naming a catalog image (catalog disambiguates) runs the same fetch-then-deploy job with the image's own settings");
+
+        // HYPERV_CONTROL_DEFAULT_IMAGE: a library entry by name, or a catalog image matched to the library by SHA-256.
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, "Win Template");
+        mock.ClearCalls();
+        var (envFailed, envVm) = await Call(tools.CreateVm("Lab Env Default", path: vms));
+        var envCalls = mock.Calls();
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, "Test Linux Copy");
+        var bySha = await service.Images.ResolveDefaultImageAsync(null, default);
+        Environment.SetEnvironmentVariable(ImageCatalogService.DefaultImageVariable, null);
+        check(!envFailed && envVm.GetProperty("parent").GetProperty("name").GetString() == "Win Template"
+            && envCalls.Single(c => c.Cmdlet == "New-VHD").Parameters.GetProperty("ParentPath").GetString() == template
+            && envCalls.Any(c => c.Cmdlet == "Set-VMFirmware" && c.Parameters.TryGetProperty("SecureBootTemplate", out var t) && t.GetString() == "MicrosoftWindows")
+            && bySha.Entry?.Name == "Test Linux" && bySha.Image?.Name == "Test Linux Copy" && bySha.Origin == "HYPERV_CONTROL_DEFAULT_IMAGE",
+            "HYPERV_CONTROL_DEFAULT_IMAGE naming a library entry makes hyperv_vm_create without source a linked clone of it; a catalog image with a library entry's SHA-256 resolves to that entry");
+
+        mock.ClearCalls();
+        var (twinFailed, twin) = await Call(tools.CreateVm("Lab Quick", imageName: "Test Windows Quick", path: Path.Combine(temp, "twins"), allowDuplicateName: true));
+        check(!twinFailed && mock.Called("New-VM") && twin.GetProperty("warnings").EnumerateArray().Any(w => w.GetString()!.Contains("already has this name")),
+            "allowDuplicateName reaches the image path's create, which warns instead of refusing");
+
+        // A running fetch is joined, never repeated: hyperv_image fetch and a second quick create wait for the first job's download.
+        service.Images.StallTimeout = TimeSpan.FromSeconds(60);
+        var (_, joinA) = await Call(tools.CreateVm("Lab Join A", imageName: "Test Quick Hold", path: vms, waitSeconds: 0));
+        var jobA = joinA.GetProperty("id").GetString()!;
+        await server.HoldReached.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        var (_, fetchDuring) = await Call(tools.ImageTool("fetch", imageName: "Test Quick Hold"));
+        var (_, joinB) = await Call(tools.CreateVm("Lab Join B", imageName: "Test Quick Hold", path: vms, waitSeconds: 0));
+        var jobB = joinB.GetProperty("id").GetString()!;
+        for (var i = 0; i < 200 && service.Jobs.Get(jobB)?.Progress.Message?.Contains(jobA) != true; i++) await Task.Delay(25);
+        var mirrored = service.Jobs.Get(jobB)?.Progress.Message ?? "";
+        server.ReleaseHold();
+        var (_, doneA) = await Call(tools.JobsTool("wait", jobA, 60));
+        var (_, doneB) = await Call(tools.JobsTool("wait", jobB, 60));
+        service.Images.StallTimeout = TimeSpan.FromSeconds(10);
+        var holdPath = Path.Combine(root, "Test-Quick-Hold.vhdx");
+        check(joinA.GetProperty("status").GetString() is "queued" or "running" && joinA.GetProperty("next").GetString() == "hyperv_jobs action=wait jobId=" + jobA
+            && fetchDuring.GetProperty("alreadyRunning").GetBoolean() && fetchDuring.GetProperty("job").GetProperty("id").GetString() == jobA
+            && jobB != jobA && joinB.GetProperty("name").GetString() == "quick create Lab Join B" && joinB.GetProperty("next").GetString() == "hyperv_jobs action=wait jobId=" + jobB
+            && mirrored.StartsWith($"job {jobA} (quick create Lab Join A) is fetching 'Test Quick Hold'")
+            && doneA.GetProperty("status").GetString() == "succeeded" && doneA.GetProperty("result").GetProperty("vm").GetProperty("Name").GetString() == "Lab Join A"
+            && doneB.GetProperty("status").GetString() == "succeeded" && doneB.GetProperty("result").GetProperty("vm").GetProperty("Name").GetString() == "Lab Join B"
+            && doneA.GetProperty("result").GetProperty("parent").GetProperty("path").GetString() == holdPath
+            && doneB.GetProperty("result").GetProperty("parent").GetProperty("path").GetString() == holdPath
+            && server.Requests.Count(r => r.Path == "/images/hold.zip" && r.Range is null) == 1,
+            "A running fetch is joined, not repeated: hyperv_image fetch returns the quick-create job, and a second quick create waits for its single download, then creates its own VM");
+    }
+
+    private static async Task<HyperVOperationException?> Expect(Func<Task> action)
+    {
+        try { await action(); return null; }
+        catch (HyperVOperationException ex) { return ex; }
     }
 
     private static string? Relation(JsonElement result) =>
@@ -502,7 +708,8 @@ internal static class ImageTests
 
 /// <summary>
 /// A loopback HTTP server for image fixtures: byte ranges (suffix, open and closed), redirects, a connection
-/// dropped once mid-download, and a download that stalls until released. It logs every request's path and Range.
+/// dropped once mid-download, a download that stalls until released (then breaks), and a download that holds
+/// until released (then completes). It logs every request's path and Range.
 /// </summary>
 internal sealed class FixtureServer : IAsyncDisposable
 {
@@ -511,13 +718,15 @@ internal sealed class FixtureServer : IAsyncDisposable
     private readonly ConcurrentDictionary<string, byte[]> files = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> redirects = new(StringComparer.OrdinalIgnoreCase);
     private readonly TaskCompletionSource stallRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource holdRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Task loop;
-    private string? dropPath, stallPath;
-    private long dropAfter, stallAfter;
+    private string? dropPath, stallPath, holdPath;
+    private long dropAfter, stallAfter, holdAfter;
     private int dropped;
 
     public ConcurrentQueue<(string Path, string? Range)> Requests { get; } = new();
     public TaskCompletionSource StallReached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource HoldReached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public string BaseUrl { get; }
 
     public FixtureServer()
@@ -546,6 +755,8 @@ internal sealed class FixtureServer : IAsyncDisposable
     public void DropOnce(string path, long after) { dropPath = path; dropAfter = after; }
     public void Stall(string path, long after) { stallPath = path; stallAfter = after; }
     public void ReleaseStall() => stallRelease.TrySetResult();
+    public void Hold(string path, long after) { holdPath = path; holdAfter = after; }
+    public void ReleaseHold() => holdRelease.TrySetResult();
 
     private async Task HandleAsync(HttpListenerContext context)
     {
@@ -606,6 +817,17 @@ internal sealed class FixtureServer : IAsyncDisposable
                 response.Abort();
                 return;
             }
+            if (download && path == holdPath)
+            {
+                var first = (int)Math.Min(holdAfter, end - start + 1);
+                await output.WriteAsync(bytes.AsMemory((int)start, first));
+                await output.FlushAsync();
+                HoldReached.TrySetResult();
+                await holdRelease.Task.WaitAsync(stop.Token);
+                await output.WriteAsync(bytes.AsMemory((int)start + first, (int)(end - start + 1) - first));
+                response.Close();
+                return;
+            }
             await output.WriteAsync(bytes.AsMemory((int)start, (int)(end - start + 1)));
             response.Close();
         }
@@ -619,6 +841,7 @@ internal sealed class FixtureServer : IAsyncDisposable
     {
         stop.Cancel();
         stallRelease.TrySetResult();
+        holdRelease.TrySetResult();
         try { listener.Stop(); listener.Close(); } catch (Exception) { }
         try { await loop; } catch (Exception) { }
         stop.Dispose();

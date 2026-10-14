@@ -59,12 +59,16 @@ internal static class ImageLiveTests
             var windev = images.Single(i => i.GetProperty("name").GetString() == "Windows 11 dev environment");
             evidence["list"] = new
             {
-                catalogs = list.GetProperty("catalogs"), recommended = list.GetProperty("recommended"),
-                images = images.Select(i => new { name = i.GetProperty("name").GetString(), expired = i.GetProperty("expired").GetBoolean(), warnings = i.GetProperty("warnings") }).ToList()
+                catalogs = list.GetProperty("catalogs"), recommended = list.GetProperty("recommended"), defaultImage = list.GetProperty("defaultImage"),
+                images = images.Select(i => new { name = i.GetProperty("name").GetString(), fetchable = i.GetProperty("fetchable").GetBoolean(), warnings = i.GetProperty("warnings") }).ToList()
             };
+            var configuredDefault = Environment.GetEnvironmentVariable(ImageCatalogService.DefaultImageVariable);
             Pass(jammy.GetProperty("fetchable").GetBoolean() && jammy.GetProperty("disk").GetProperty("sha256").GetString() == JammySha256
-                && windev.GetProperty("expired").GetBoolean() && list.GetProperty("recommended").GetProperty("linux").GetProperty("name").GetString() == ImageName,
-                "list reads Microsoft's live feed, flags the expired Windows image and recommends Ubuntu 22.04");
+                && windev.GetProperty("fetchable").GetBoolean() && windev.GetProperty("warnings").EnumerateArray().Any(w => w.GetString()!.StartsWith("Evaluation edition"))
+                && list.GetProperty("recommended").GetProperty("linux").GetProperty("name").GetString() == ImageName
+                && list.GetProperty("recommended").GetProperty("windows").GetProperty("name").GetString() == "Windows 11 dev environment"
+                && (configuredDefault is not null || list.GetProperty("defaultImage").GetProperty("name").GetString() == "Windows 11 dev environment"),
+                "list reads Microsoft's live feed, recommends Ubuntu 22.04 and the Windows 11 dev environment (an evaluation edition, the default image)");
 
             // 2. Fetch as a job and poll it.
             var started = await call("hyperv_image", new { action = "fetch", imageName = ImageName, catalog = "microsoft" }, label: "images-live-fetch-start");

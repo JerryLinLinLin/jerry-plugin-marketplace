@@ -1,15 +1,35 @@
 # Images: catalogs, library and deploy
 
-`hyperv_image` turns gallery images and local disks into lab VMs; `hyperv_jobs` tracks the long-running part. Start with `hyperv_image action=list`. It reads every enabled catalog and the local library, flags problems per image, and returns a `recommended` block with a one-line `hint`. Listing reads only the catalog JSON files and never touches a disk URL.
+`hyperv_image` turns gallery images and local disks into lab VMs; `hyperv_jobs` tracks the long-running part. Start with `hyperv_image action=list`. It reads every enabled catalog and the local library, flags problems per image, and returns a `recommended` block with a one-line `hint` and the `defaultImage` that `hyperv_vm_create` uses. Listing reads only the catalog JSON files and never touches a disk URL.
 
 ## Workflow
 
-1. `list`, then read `recommended`, each image's `warnings`, and the `library` entries.
-2. When a library entry fits, `deploy` it. A linked clone (the default) is ready in seconds.
-3. Otherwise `fetch` the catalog image once. It returns a job: poll `hyperv_jobs action=wait jobId=<id> waitSeconds=30` until `status` is `succeeded`, or pass `waitSeconds` (at most 3600) to `fetch` to wait inline. Then `deploy` the new library entry.
-4. Boot it: `hyperv_power start` (or `start=true` on deploy), then the Basic console. The Ubuntu desktop images open a first-boot setup wizard (user, locale, time zone) on the console. Enhanced Session works only after that setup finishes.
+1. `list`, then read `defaultImage`, `recommended`, each image's `warnings`, and the `library` entries.
+2. For a Windows lab VM, call `hyperv_vm_create name=<vm>` without `source`: it creates a linked clone of the default image, Microsoft's **Windows 11 dev environment** (see [Default image](#default-image)). When `defaultImage.inLibrary` is null, that first call downloads the image; confirm with the user first.
+3. For another image, `deploy` a library entry, or `fetch` the catalog image once and then `deploy` it. A fetch returns a job: poll `hyperv_jobs action=wait jobId=<id> waitSeconds=30` until `status` is `succeeded`, or pass `waitSeconds` (at most 3600) to wait inline. `hyperv_vm_create imageName=<catalog image>` does both in one job. A linked clone (the default) is ready in seconds.
+4. Boot it: `hyperv_power start` (or `start=true`), then the Basic console. The Ubuntu desktop images open a first-boot setup wizard (user, locale, time zone) on the console. Enhanced Session works only after that setup finishes.
 
-For Windows there is no current catalog image: build a golden image from a Windows ISO, or `register` a VHDX you already have.
+For Windows images the catalogs lack, build a golden image from a Windows ISO or `register` a VHDX you already have; `HYPERV_CONTROL_DEFAULT_IMAGE` can then make it the default.
+
+## Default image
+
+`hyperv_vm_create` uses `source=image` by default. Without `imageName` it deploys the default image:
+
+1. `HYPERV_CONTROL_DEFAULT_IMAGE`, when set, names a library entry or else a catalog image, by exact name (case-insensitive). Set it in the MCP client's configuration or as a user environment variable; the launcher forwards `HYPERV_CONTROL_*` variables to the elevated worker.
+2. Otherwise the recommended Windows catalog image: the newest fetchable Windows image of the enabled catalogs. In Microsoft's gallery that is the **Windows 11 dev environment** (Windows 11 Enterprise evaluation, version 10.0.22621, last updated 2024-07-25).
+3. When no catalog offers a Windows image (offline, or the catalogs disabled), the newest Windows image the library fetched from a catalog.
+
+A catalog image the library already holds (same SHA-256, else same name) resolves to that entry. `list` reports the choice as `defaultImage` `{ name, catalog, inLibrary, source }`, where `source` is `HYPERV_CONTROL_DEFAULT_IMAGE`, `recommended windows catalog image`, or for the third case `newest windows library image (no catalog offers one)`; an unusable variable or a missing default shows up there as `error`.
+
+One call does the rest:
+
+- The image is in the library: `hyperv_vm_create` makes a linked clone within the call (seconds) and returns `{ vm, disk, parent, started, warnings }`, the same result as `deploy`.
+- It must be fetched: one `hyperv_jobs` job named `quick create <vm>` runs the fetch (resolving, downloading, verifying, extracting, registering) and then creates the VM; the job's `result` is the VM. `waitSeconds` (0-3600, default 60) bounds the wait. A job still running returns its state plus `next: "hyperv_jobs action=wait jobId=<id>"`; a failed one returns `{ ok: false, error, errorType, job }`. Once fetched, the image stays in the library even when creating the VM fails, so a retry takes seconds.
+- The VM name, its folder's disk path and the switch are checked before any download starts, so a long download never ends in a refusal that was knowable up front.
+- A fetch of the same image that is already running (from `fetch` or another `hyperv_vm_create`) is joined, never repeated: the new job mirrors that job's progress, then creates its VM. While a quick create downloads, `fetch` of that image returns `alreadyRunning` with the quick-create job.
+- Cancelling the job while it downloads deletes the partial download and extraction output, as for `fetch`.
+
+The Windows 11 dev environment is a 23.3 GB download that extracts to a 44.8 GB VHDX: about 69 GB must be free in the library root at the peak, and 44.8 GB stays used. Confirm with the user before that first download, and point `HYPERV_CONTROL_IMAGE_ROOT` at a larger volume when the default VHD path is short of space. `hyperv_image deploy` without `imageName` also uses the default image, but only once the library holds it.
 
 ## Catalogs
 
@@ -28,13 +48,12 @@ To add an image Microsoft never published (Canonical's Ubuntu 24.04 Hyper-V desk
 
 ## Warnings
 
-Warnings explain why an image is or is not a good choice. Three flags drive the recommendation: `expired`, `endOfLife` and `fetchable`.
+Warnings explain why an image is or is not a good choice. Two flags keep an image out of the recommendation: `endOfLife`, and `fetchable` when it is false. An evaluation edition or a stale image is still recommended when it is the newest of its OS family.
 
 | Warning | Meaning |
 | --- | --- |
-| Expired evaluation | Microsoft's **Windows 11 dev environment** (`WinDev2407Eval`, version 10.0.22621, built 2024-07-25) expired on **2024-10-23**. It still downloads (23.3 GB) and boots, but shows a black desktop and a "not genuine" notice and shuts down every hour. Microsoft discontinued these images. Do not use it for agent work. |
-| Likely expired evaluation | Another Windows evaluation build more than 90 days old, such as the Windows 10 MSIX packaging environment. |
-| Stale image | Last updated more than three years ago, as Microsoft's Ubuntu entries (2022) are. They still work, but expect a long first update. |
+| Evaluation edition | A Windows Enterprise evaluation: Microsoft's **Windows 11 dev environment** (`WinDev2407Eval`, version 10.0.22621, last updated 2024-07-25) and the Windows 10 MSIX packaging environment. Hyper-V Quick Create still downloads and runs it (verified with the Windows 11 dev environment on 2026-10-14). The evaluation license is time-limited: run `slmgr /xpr` inside the guest for the end date (Windows evaluations run about 90 days). Take a checkpoint after the first boot, and recreate the VM from the image when the evaluation expires. The feed publishes no end date, so the plugin never marks an evaluation expired. |
+| Stale image | Last updated more than three years ago, as Microsoft's Ubuntu entries (2022) and the MSIX packaging environment are. They still work, but expect a long first update. |
 | Out of standard support | Ubuntu 18.04 (May 2023) and 20.04 (May 2025). |
 | No hash / invalid hash / unsupported disk type | The image cannot be verified or used, so fetch refuses it. |
 
@@ -60,15 +79,15 @@ A fetch job resolves the disk URL with one 64 KB range request, which gives the 
 | `hyperv_jobs action=cancel` | Job ends `cancelled`; the partial download and any extraction output are deleted. |
 | SHA-256 mismatch | Job fails with `HashMismatch`; the download is deleted. |
 | Same image already in the library | `fetch` returns `alreadyInLibrary` with the entry; nothing is downloaded. |
-| Same image already being fetched | `fetch` returns `alreadyRunning` with that job. |
+| Same image already being fetched | `fetch` returns `alreadyRunning` with that job (a fetch job, or a `quick create` job of `hyperv_vm_create`). |
 
 Jobs belong to the MCP process: they appear in `hyperv_jobs list` until it exits, and an exit stops them. A partial download survives an exit, and the next fetch resumes it.
 
-Disk space: the preflight needs the remaining download plus the extracted entry plus 1 GB. Microsoft's Ubuntu 22.04 entry needs about 10 GB at peak (2.5 GB zip, 6.4 GB VHDX) and leaves 6.4 GB. Canonical's 24.04 build needs about 13 GB (3.7 GB, 8.2 GB). The expired Windows image would need about 69 GB (23.3 GB, 44.8 GB). Point `HYPERV_CONTROL_IMAGE_ROOT` at a larger volume when the default VHD path is short of space.
+Disk space: the preflight needs the remaining download plus the extracted entry plus 1 GB, and fails with `InsufficientDiskSpace` (naming `HYPERV_CONTROL_IMAGE_ROOT`) before downloading. Microsoft's Ubuntu 22.04 entry needs about 10 GB at peak (2.5 GB zip, 6.4 GB VHDX) and leaves 6.4 GB. Canonical's 24.04 build needs about 13 GB (3.7 GB, 8.2 GB). The Windows 11 dev environment needs about 69 GB (23.3 GB zip, 44.8 GB VHDX) and leaves 44.8 GB. Point `HYPERV_CONTROL_IMAGE_ROOT` at a larger volume when the default VHD path is short of space.
 
 ## Deploy
 
-`deploy` takes `imageName` (a library entry), `vmName`, `linked` (default `true`), `memoryMb` (4096), `processors` (2), `switchName`, `vmPath` (default: the host's VM path), `notes` and `start`. It refuses a VM name that already exists and refuses ISO entries, which are installation media rather than bootable disks. The new disk goes to `<vmPath>\<vmName>\Virtual Hard Disks\<vmName>.vhdx`: a differencing child of the image, or a full copy when `linked=false`. The VM is Generation 2 and joins the Default Switch, found by its fixed ID, when `switchName` is omitted; without one the adapter stays disconnected (a warning says so). Any failure removes the half-created VM and its disk.
+`deploy` takes `imageName` (a library entry; omitted, the default image once the library holds it), `vmName`, `linked` (default `true`), `memoryMb` (4096), `processors` (2), `switchName`, `vmPath` (default: the host's VM path), `notes` and `start`. It refuses a VM name that already exists and refuses ISO entries, which are installation media rather than bootable disks. The new disk goes to `<vmPath>\<vmName>\Virtual Hard Disks\<vmName>.vhdx`: a differencing child of the image, or a full copy when `linked=false`. The VM is Generation 2 and joins the Default Switch, found by its fixed ID, when `switchName` is omitted; without one the adapter stays disconnected (a warning says so). Any failure removes the half-created VM and its disk.
 
 Lab defaults, which differ from Quick Create's on purpose:
 
@@ -81,15 +100,15 @@ Lab defaults, which differ from Quick Create's on purpose:
 | Enhanced session transport | The image's setting; `HvSocket` for Linux by default |
 | vTPM | Windows only: a local key protector and `Enable-VMTPM`, applied after the Secure Boot template because the vTPM locks it |
 
-The result has the VM as `hyperv_vm_create` returns it (state, memory, checkpoint settings, `EnhancedSessionTransportType`, `Firmware`, `Security` with `TpmEnabled`, `createdFiles`, `nextSteps`), `disk` (`path`, `type`, `parentPath`), `parent`, `started` and `warnings`. `hyperv_vm_create` with `source=image` and `imageName` is the same operation. Kernel debugging needs Secure Boot off; change it with `hyperv_firmware` while the VM is Off.
+The result has the VM as `hyperv_vm_create` returns it (state, memory, checkpoint settings, `EnhancedSessionTransportType`, `Firmware`, `Security` with `TpmEnabled`, `createdFiles`, `nextSteps`), `disk` (`path`, `type`, `parentPath`), `parent`, `started` and `warnings` (including the image's own warnings, such as the evaluation edition). `hyperv_vm_create` with `source=image` (its default) is the same linked-clone deploy and also takes `allowDuplicateName`; it additionally fetches a catalog image first and refuses parameters that only other sources use (`vhdPath`, `parentPath`, `isoPath`, `generation`, `diskGb`, dynamic memory, `secureBoot`, `tpm`, `autoCheckpoints`, `checkpointType`). Kernel debugging needs Secure Boot off; change it with `hyperv_firmware` while the VM is Off.
 
 ## Errors
 
-Failures use the usual `{ ok: false, error, errorType }` envelope. A `fetch` whose job fails within `waitSeconds` returns that envelope with the `job` attached. `hyperv_jobs status` and `wait` return the job itself; read its `status`, `error` and `errorType`.
+Failures use the usual `{ ok: false, error, errorType }` envelope. A `fetch` or `hyperv_vm_create` whose job fails within `waitSeconds` returns that envelope with the `job` attached. `hyperv_jobs status` and `wait` return the job itself; read its `status`, `error` and `errorType`.
 
 | errorType | Cause |
 | --- | --- |
-| `NotFound` | No such catalog image, catalog, library entry or file, or an HTTP 404 |
+| `NotFound` | No such catalog image, catalog, library entry or file, an HTTP 404, no default image (or `HYPERV_CONTROL_DEFAULT_IMAGE` names nothing), or `deploy` without `imageName` before the library holds the default image |
 | `AmbiguousName` | The image name exists in several catalogs; pass `catalog` |
 | `AlreadyExists` | A library entry, catalog, file or disk with that name or path exists |
 | `UnsupportedImage` | No valid hash, an unsupported disk type, a missing archive entry or a wrong file signature |

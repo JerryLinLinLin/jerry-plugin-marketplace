@@ -192,6 +192,14 @@ internal static class LifecycleV2Tests
         mock.ClearCalls();
         var duplicate = await Expect(() => lifecycle.CreateAsync(new VmCreateRequest("Existing") { DiskGb = 2 }, default));
         check(duplicate?.ErrorType == "InvalidArgument" && duplicate.Message.Contains("allowDuplicateName") && !Mutated(mock), "Create refuses an existing VM name before any change");
+        mock.ClearCalls();
+        var preDuplicate = await Expect(() => lifecycle.CheckCreateAsync("Existing", null, false, default));
+        var preSwitch = await Expect(() => lifecycle.CheckCreateAsync("Fresh", "Nope", false, default));
+        var preAllowed = await lifecycle.CheckCreateAsync("Existing", "", true, default);
+        check(preDuplicate?.ErrorType == "InvalidArgument" && preDuplicate.Message == duplicate?.Message && preSwitch?.ErrorType == "NotFound"
+            && Texts(preAllowed, "warnings").Any(w => w.Contains("already has this name")) && !Mutated(mock)
+            && await Throws<ArgumentException>(() => lifecycle.CheckCreateAsync("bad/name", null, false, default)),
+            "CheckCreateAsync runs create's name and switch refusals with the same messages and changes nothing");
         var twin = await lifecycle.CreateAsync(new VmCreateRequest("Existing") { Source = "none", AllowDuplicateName = true }, default);
         check(Single(mock, "New-VM").GetProperty("NoVHD").GetBoolean() && !Single(mock, "New-VM").TryGetProperty("NewVHDPath", out _)
             && Texts(twin, "warnings").Any(w => w.Contains("same name") || w.Contains("this name")) && twin.GetProperty("createdFiles").GetArrayLength() == 0,

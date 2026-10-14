@@ -4,8 +4,8 @@ Manage a Hyper-V lab from your AI agent. Create and restore experiments, interac
 
 ## What it helps with
 
-- **VM management:** create VMs from a new disk, an ISO, an existing or linked disk, or a library image; configure CPU, memory, firmware, vTPM, checkpoints, adapters and automatic actions, with changes gated by what Hyper-V allows while a VM runs; clone (linked in seconds, or full as a job); remove with a dry run and optional, guarded disk deletion; manage disks, switches and NAT networks.
-- **Images and templates:** list Microsoft's Quick Create gallery or your own catalog, download and verify images into a local library as background jobs, register your own disks, and deploy linked-clone lab VMs from them in seconds with lab-friendly defaults.
+- **VM management:** create a Windows lab VM in one call from Microsoft's Windows 11 dev environment image (an evaluation edition; downloaded once, then linked clones in seconds), or from another library image, a new disk, an ISO, or an existing or linked disk; configure CPU, memory, firmware, vTPM, checkpoints, adapters and automatic actions, with changes gated by what Hyper-V allows while a VM runs; clone (linked in seconds, or full as a job); remove with a dry run and optional, guarded disk deletion; manage disks, switches and NAT networks.
+- **Images and templates:** list Microsoft's Quick Create gallery or your own catalog, download and verify images into a local library as background jobs, choose the default image, register your own disks, and deploy linked-clone lab VMs from them in seconds with lab-friendly defaults.
 - **Golden images:** build a Windows template from an ISO or Microsoft evaluation media applied offline with an unattend file (local admin, RDP, no device encryption, optional kernel-debug settings), or an Ubuntu template from a cloud image with a NoCloud seed, without ever running Setup interactively.
 - **Repeatable experiments:** inspect checkpoint trees, save a known state, and restore it after testing.
 - **Desktop interaction:** use Basic or Enhanced Session, capture screenshots, send mouse and keyboard input, and work with guest UI Automation.
