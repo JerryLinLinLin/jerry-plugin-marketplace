@@ -17,12 +17,6 @@ internal static class ImageTests
     internal static Task RunAsync(Action<bool, string> check) => Task.CompletedTask;
 }
 
-/// <summary>Golden image build unit tests (phase 3).</summary>
-internal static class ImageBuildTests
-{
-    internal static Task RunAsync(Action<bool, string> check) => Task.CompletedTask;
-}
-
 /// <summary>Live validation of lifecycle v2 on throwaway VMs (phase 2). Requires an elevated host and explicit authorization.</summary>
 internal static class LifecycleLiveTests
 {
