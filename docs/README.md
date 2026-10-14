@@ -24,10 +24,19 @@ These are dated or versioned records of what was tested, including environment d
 | Frida Use | [Windows instrumentation experiments and evidence](validation/frida-use/2026-10-01/report.md) |
 | Hyper-V Control | [VM, console, and debugger validation](validation/hyper-v-control/runtime-v0.1.0/report.md) |
 
+## Archive
+
+Imported or superseded material kept byte-for-byte for provenance, outside the installed plugins. Each archive carries an `import-manifest.json`; the repository checker verifies those hashes, so never edit archived files.
+
+| Component | Archive |
+| --- | --- |
+| Frida Use | [Imported project documentation and original manifests](archive/frida-use/README.md) |
+
 ## Where new documents belong
 
 - `guides/`: maintained task procedures.
 - `reference/`: component facts, formats, and notices.
 - `validation/<component>/<version-or-date>/`: one report and its retained evidence for each run.
+- `archive/<component>/`: imported material with its manifest and a README explaining its origin.
 
 Keep this directory root limited to this index. Link to existing plugin documentation rather than duplicating it. Add new validation runs alongside previous records; update links when moving documents, and keep generated binaries and large captures under ignored `build/`.

@@ -74,9 +74,11 @@ exit status and relevant side effects. Prefer real execution over disassembly or
 alone. Validate unknown or malicious samples only in an established isolated environment or
 bounded emulation; do not execute them on the host merely to test a patch.
 
-The plugin's `experiments/` directory contains a locally compiled fixture and a reproducible
-workflow that invokes the full CLI, executes Windows EXEs and checks rollback hashes. See
-the plugin README. Report CPU emulation and native OS execution separately.
+The repository's [maintainer harness](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/tests/capstone-binary-patching/run_experiments.py)
+contains a locally compiled fixture and a reproducible workflow that invokes the full CLI,
+executes Windows EXEs and checks rollback hashes. It is not part of the installed plugin. See
+the [validation record](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/validation/capstone-binary-patching/plugin-v0.1.0/report.md)
+for recorded results. Report CPU emulation and native OS execution separately.
 
 Deliver the patched copy, plan JSON, original and resulting hashes, offsets and addresses,
 before/after instructions, behavior results and rollback command. State unverified platforms,

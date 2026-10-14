@@ -49,6 +49,6 @@ also requires checking the installed version and implementation.
 - [Keystone-engine 0.9.2](https://pypi.org/project/keystone-engine/0.9.2/): optional assembler.
 - [Unicorn 2.1.4](https://pypi.org/project/unicorn/2.1.4/): CPU emulator used in experiments.
 
-Consult the plugin's `experiments/` directory and repository report
+Consult the repository harness `tests/capstone-binary-patching/run_experiments.py` and repository report
 `docs/validation/capstone-binary-patching/plugin-v0.1.0/report.md` for local execution results. Listing an
 optional tool here does not mean it was installed or tested on this host.

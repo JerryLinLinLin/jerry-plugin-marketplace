@@ -27,13 +27,13 @@ def check_sums(folder, filename, expected):
 
 
 def test_rizin():
-    version = json.loads((ROOT / 'bundle.lock.json').read_text())['bundleVersion']
+    version = json.loads((ROOT / 'runtimes/rizin/bundle.lock.json').read_text())['bundleVersion']
     scratch = ROOT / 'build' / f'runtime-packaging-test-{uuid.uuid4().hex}'
     runtime, output = scratch / 'custom-runtime-directory', scratch / 'release'
     (runtime / 'bin').mkdir(parents=True)
     (runtime / 'bin/rizin.exe').write_bytes(b'packaging fixture; never executed')
     (runtime / 'bundle-manifest.json').write_text(json.dumps({'bundleVersion': version}))
-    command = [sys.executable, str(ROOT / 'scripts/package_bundle.py'), '--runtime', str(runtime),
+    command = [sys.executable, str(ROOT / 'runtimes/rizin/package_bundle.py'), '--runtime', str(runtime),
                '--version', version, '--output', str(output)]
     subprocess.run(command, check=True)
     name = f'rizin-windows-x64-bundle-v{version}.zip'

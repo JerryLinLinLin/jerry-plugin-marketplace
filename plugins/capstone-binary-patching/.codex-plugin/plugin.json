@@ -1,6 +1,6 @@
 {
   "name": "capstone-binary-patching",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Instruction-aware binary patching, diffs and rollback through a uv-managed Capstone CLI and focused workflows.",
   "author": {
     "name": "JerryLinLinLin",
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "Capstone Binary Patching",
     "shortDescription": "Build, diff, verify and reverse binary patches.",
-    "longDescription": "A skill and CLI for native binary patch construction, instruction-aware diffs, patch porting and rollback. Uses uv-managed Capstone and LIEF with optional Keystone assembly. Includes PE, ELF, Mach-O, firmware and analysis-copy workflows, hash-bound patch plans, and reproducible native Windows experiments. No MCP server or account connection.",
+    "longDescription": "A skill and CLI for native binary patch construction, instruction-aware diffs, patch porting and rollback. Uses uv-managed Capstone and LIEF with optional Keystone assembly. Includes PE, ELF, Mach-O, firmware and analysis-copy workflows and hash-bound patch plans, validated by reproducible native Windows experiments in the repository. No MCP server or account connection.",
     "developerName": "JerryLinLinLin",
     "category": "Security",
     "capabilities": [

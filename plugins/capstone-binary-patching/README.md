@@ -30,10 +30,10 @@ Dependency versions are managed by the script metadata and lockfile. See the [pa
 
 Patches are written to new files. Successful decoding does not prove equivalent behavior: validate each change on its intended platform. The CLI does not attach to processes, execute inputs, grow files, relocate instructions, or repair executable signatures.
 
-The [experiment harness](experiments/run_experiments.py) builds a controlled Windows fixture and checks its behavior before patching, after patching, and after rollback. To run it from the repository root with MSVC x64 tools and uv:
+The [experiment harness](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/tests/capstone-binary-patching/run_experiments.py) is kept in the repository, outside the installed plugin. It builds a controlled Windows fixture and checks its behavior before patching, after patching, and after rollback. To run it from the root of a repository checkout with MSVC x64 tools and uv:
 
 ```powershell
-uv run --managed-python --locked '.\plugins\capstone-binary-patching\experiments\run_experiments.py' --out '.\build\capstone-experiments\my-run'
+uv run --managed-python --locked '.\tests\capstone-binary-patching\run_experiments.py' --out '.\build\capstone-experiments\my-run'
 ```
 
 Choose a fresh output directory. The harness records commands, output, exit codes, and hashes; it also checks instruction emulation and format mappings. See the [reference guides](skills/capstone-binary-patching/references) for platform limits and advanced workflows.

@@ -1,6 +1,22 @@
-*.zip filter=lfs diff=lfs merge=lfs -text
-*.patch text eol=lf -whitespace
-*.manifest text eol=lf
-src/HyperVControl/** text eol=lf
-tests/HyperVControl.Tests/** text eol=lf
-plugins/hyper-v-control/** text eol=lf
+# Normalize every text file to LF in the repository and on checkout.
+# Binary files are detected automatically; list common types explicitly
+# so a later addition (icons, archives, dumps) can never be line-ending converted.
+* text=auto eol=lf
+*.patch -whitespace
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.pdb binary
+*.dmp binary
+
+# Imported archives are kept byte-for-byte (their import manifests record SHA-256 of the
+# original bytes, which use CRLF). Store and check them out without any conversion.
+docs/archive/** -text
+docs/archive/**/README.md text
+docs/archive/**/import-manifest.json text
+plugins/frida-use/LICENSE -text
+plugins/frida-use/assets/icon.svg -text
