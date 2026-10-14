@@ -8,4 +8,8 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/HyperVControl/HyperVControl.csproj" /></ItemGroup>
+  <ItemGroup>
+    <!-- The recording mock of the Hyper-V module; staged into a temp directory per test scenario. -->
+    <None Include="MockHyperV\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

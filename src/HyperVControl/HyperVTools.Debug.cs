@@ -41,7 +41,7 @@ internal sealed partial class HyperVTools
         var serialAttach = $"com:pipe,port={pipePath},resets=0,reconnect";
         if (action == "serial_host")
         {
-            var result = await service.PowerShell.JsonAsync(Vm(vm.Id) + RequireOff + $"Set-VMComPort -VM $vm -Number {comPort} -Path {L(pipePath)}\nGet-VMComPort -VM $vm -Number {comPort} | Select-Object Name,Path | ConvertTo-Json -Compress", ct);
+            var result = await service.Lifecycle.SetComPortAsync(vm.Id, comPort, pipePath, ct);
             return new { success = true, phase = "host_serial_configured", result, kernelAttachString = serialAttach,
                 next = "Start the VM, wait for PowerShell Direct readiness, then call serial_guest with the same COM port. This step has not configured guest BCD." };
         }

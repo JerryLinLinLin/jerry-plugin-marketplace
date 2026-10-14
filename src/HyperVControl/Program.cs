@@ -14,13 +14,17 @@ internal static class Program
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) } };
 
+    /// <summary>The project version; the only place it is read from, for --version and the MCP server info.</summary>
+    internal static string Version { get; } = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
     public static async Task<int> Main(string[] args)
     {
         try
         {
             if (args.Length == 0 || args[0] != "--worker")
             { Console.InputEncoding = new UTF8Encoding(false); Console.OutputEncoding = new UTF8Encoding(false); }
-            if (args.Contains("--version")) { Console.WriteLine("Hyper-V Control 0.1.0"); return 0; }
+            if (args.Contains("--version")) { Console.WriteLine("Hyper-V Control " + Version); return 0; }
             if (args.Contains("--help"))
             {
                 Console.WriteLine("HyperVControl.exe [--elevate]\nC# MCP server over stdio. --elevate uses a same-user UAC worker when necessary.\nNo HTTP listener. Log output goes to stderr. See the bundled skill and README.");
@@ -42,7 +46,7 @@ internal static class Program
             var tools = new HyperVTools(control);
             var options = new McpServerOptions
             {
-                ServerInfo = new() { Name = "hyper-v-control", Version = "0.1.0" },
+                ServerInfo = new() { Name = "hyper-v-control", Version = Version },
                 ServerInstructions = "Manage local Hyper-V VMs by exact name/ID. Start with hyperv_capabilities and hyperv_list. Basic console works at boot without guest credentials; Enhanced requires a supported guest and visible console. PowerShell Direct and UI Automation require guest credentials. Kernel debugger sessions target a VM, never the host kernel. Debugger command timeouts return pending sessions; poll or break them instead of starting another debugger.",
                 ToolCollection = []
             };

@@ -67,6 +67,10 @@ internal sealed class PowerShellRunner
         }
     }
 
+    /// <summary>Runs a built host script and unwraps its envelope; failures throw <see cref="HyperVOperationException"/>.</summary>
+    public async Task<JsonElement> InvokeAsync(HyperVScript script, CancellationToken ct, int timeoutSeconds = 120) =>
+        HyperVScript.Unwrap(await RunAsync(script.ToString(), ct, timeoutSeconds));
+
     public async Task<JsonElement> JsonAsync(string script, CancellationToken ct, int timeoutSeconds = 120)
     {
         var result = await RunAsync("""

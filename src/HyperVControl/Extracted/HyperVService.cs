@@ -17,24 +17,10 @@ public sealed class HyperVService
         PropertyNameCaseInsensitive = true,
     };
 
-    private const string ScriptPreamble =
+    // The module bootstrap, authorization probe and capability detection are shared with every
+    // other host script through HyperVScript, so the test module seam applies here as well.
+    private static readonly string ScriptPreamble = Services.HyperVScript.ModuleBootstrap +
         """
-        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-        $ErrorActionPreference = 'Stop'
-        $ProgressPreference = 'SilentlyContinue'
-        $WarningPreference = 'SilentlyContinue'
-        $PSModuleAutoLoadingPreference = 'None'
-
-        $systemModuleRoot = [System.IO.Path]::Combine($PSHOME, 'Modules')
-        $env:PSModulePath = $systemModuleRoot
-        Import-Module -Name ([System.IO.Path]::Combine(
-            $systemModuleRoot,
-            'Microsoft.PowerShell.Management',
-            'Microsoft.PowerShell.Management.psd1')) -ErrorAction Stop
-        Import-Module -Name ([System.IO.Path]::Combine(
-            $systemModuleRoot,
-            'Microsoft.PowerShell.Utility',
-            'Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
 
         function Write-Result(
             [string]$Status,
@@ -68,25 +54,13 @@ public sealed class HyperVService
             } | Microsoft.PowerShell.Utility\ConvertTo-Json -Compress -Depth 6
         }
 
-        function Test-HyperVAuthorization {
-            try {
-                $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-                $principal = [Security.Principal.WindowsPrincipal]::new($identity)
-                $hyperVAdministrators = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-578')
-                return $principal.IsInRole($hyperVAdministrators) -or
-                    $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-            } catch {
-                return $false
-            }
-        }
-
         function Write-CapabilityFailure([System.Management.Automation.ErrorRecord]$Record) {
             $permissionDenied = $Record.CategoryInfo.Category -eq
                     [System.Management.Automation.ErrorCategory]::PermissionDenied -or
                 $Record.Exception -is [UnauthorizedAccessException] -or
                 ($Record.Exception.GetType().FullName -eq
                     'Microsoft.HyperV.PowerShell.VirtualizationException' -and
-                    -not (Test-HyperVAuthorization))
+                    -not (Test-ControlAuthorization))
             $status = if ($permissionDenied) { 'accessDenied' } else { 'unavailable' }
             Write-Result $status $Record.Exception.Message @() $null
         }
@@ -145,41 +119,9 @@ public sealed class HyperVService
             }
         }
 
-        $hyperVModuleRoot = Join-Path $systemModuleRoot 'Hyper-V'
-        $hyperVManifests = if ([System.IO.Directory]::Exists($hyperVModuleRoot)) {
-            @([System.IO.Directory]::GetFiles(
-                $hyperVModuleRoot,
-                'Hyper-V.psd1',
-                [System.IO.SearchOption]::AllDirectories))
-        } else {
-            @()
-        }
-
-        if ($hyperVManifests.Count -eq 0) {
-            Write-Result 'notInstalled' 'The Hyper-V management tools are not installed.' @() $null
-            exit 0
-        }
-
-        $vmms = Microsoft.PowerShell.Management\Get-Service -Name 'vmms' -ErrorAction SilentlyContinue
-        if ($null -eq $vmms) {
-            Write-Result 'notInstalled' 'The Hyper-V Virtual Machine Management service is not installed.' @() $null
-            exit 0
-        }
-
-        # A stopped service fails every Hyper-V cmdlet with the same "object was not found"
-        # record one unreadable machine produces, so it is ruled out here, by name.
-        if ($vmms.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
-            Write-Result 'unavailable' 'The Hyper-V Virtual Machine Management service is not running.' @() $null
-            exit 0
-        }
-
-        try {
-            $hyperVManifest = $hyperVManifests |
-                Sort-Object -Descending |
-                Select-Object -First 1
-            Import-Module -Name $hyperVManifest -ErrorAction Stop
-        } catch {
-            Write-CapabilityFailure $_
+        $hyperVStatus = Import-ControlHyperV
+        if ($hyperVStatus.state -ne 'available') {
+            Write-Result $hyperVStatus.state $hyperVStatus.detail @() $null
             exit 0
         }
         """;

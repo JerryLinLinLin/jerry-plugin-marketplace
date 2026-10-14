@@ -24,7 +24,14 @@ if (args.Length == 0 || args[0] == "unit")
     Check(HyperVGuestUiService.ValidateUiCommand("inspect") == "inspect", "UI inspection routing");
     try { HyperVGuestUiService.ValidateUiCommand("send-keys"); throw new Exception("accepted unsupported UI input"); } catch (ArgumentException) { Console.WriteLine("PASS UI keyboard redirects to console"); }
     Check(HyperVGuestUiService.BuildWindowsArgumentLine(["one two", "a\"b", @"C:\tail space\"]).Contains("\\\""), "Windows argv quote escaping");
-    try { await HyperVControl.Tests.ReviewRegressionTests.RunAsync(Check); }
+    try
+    {
+        await HyperVControl.Tests.ReviewRegressionTests.RunAsync(Check);
+        await HyperVControl.Tests.LifecycleTests.RunAsync(Check);
+        await HyperVControl.Tests.LifecycleV2Tests.RunAsync(Check);
+        await HyperVControl.Tests.ImageTests.RunAsync(Check);
+        await HyperVControl.Tests.ImageBuildTests.RunAsync(Check);
+    }
     catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; return; }
     Console.WriteLine("UNIT PASS");
     return;
@@ -220,5 +227,8 @@ else if(args[0] == "cleanup")
     Check(originalIds.SetEquals(finalIds),"All original checkpoint IDs preserved; only test checkpoint removed");
     Check(original.GetProperty("currentParentCheckpointId").GetString()==finalCheckpoints.GetProperty("currentParentCheckpointId").GetString(),"Original checkpoint branch restored");
 }
+else if (args[0] == "lifecycle-live") await HyperVControl.Tests.LifecycleLiveTests.RunAsync(Call, Check, results);
+else if (args[0] == "images-live") await HyperVControl.Tests.ImageLiveTests.RunAsync(Call, Check, results);
+else if (args[0] == "image-build-live") await HyperVControl.Tests.ImageBuildLiveTests.RunAsync(Call, Check, results);
 else throw new ArgumentException("Unknown validation phase.");
 Console.WriteLine(args[0].ToUpperInvariant()+" PASS");

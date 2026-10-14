@@ -3,11 +3,16 @@ using HyperVControl.Extracted;
 
 namespace HyperVControl.Services;
 
+/// <summary>Composition root for the services behind the MCP tools; owns their lifetimes.</summary>
 internal sealed class ControlService : IDisposable
 {
     public PowerShellRunner PowerShell { get; } = new();
     public CredentialStore Credentials { get; } = new();
     public HyperVService HyperV { get; }
+    public VmLifecycleService Lifecycle { get; }
+    public JobRunner Jobs { get; } = new();
+    public ImageCatalogService Images { get; }
+    public ImageBuildService ImageBuild { get; }
     public GuestService Guest { get; }
     public DebuggerService Debugger { get; }
     public ConsoleService Console { get; }
@@ -22,6 +27,9 @@ internal sealed class ControlService : IDisposable
             var result = await PowerShell.RunAsync(script, ct, 360);
             return new(result.ExitCode, result.Stdout, result.Stderr);
         });
+        Lifecycle = new(PowerShell);
+        Images = new(PowerShell, Jobs);
+        ImageBuild = new(PowerShell, Jobs);
         Guest = new(PowerShell, Credentials);
         Debugger = new(PowerShell);
         Console = new(Credentials);
@@ -38,6 +46,11 @@ internal sealed class ControlService : IDisposable
             });
     }
 
+    /// <summary>
+    /// Resolves an exact name or GUID through the typed inventory. Tools that need the VM's state
+    /// before choosing a channel (console, guest, debugger) use this; host operations resolve inside
+    /// their own script instead, through <see cref="HyperVScript.Vm(string)"/>.
+    /// </summary>
     public async Task<HyperVMachine> ResolveAsync(string machine, CancellationToken ct)
     {
         var inventory = await HyperV.GetInventoryAsync(ct);
@@ -52,21 +65,8 @@ internal sealed class ControlService : IDisposable
         };
     }
 
-    internal static string Vm(Guid id) => $"$vm = Get-VM -Id ([guid]'{id:D}') -ErrorAction Stop\n";
-    internal static string VmJson => "$vm | Select-Object Id,Name,State,Generation,ProcessorCount,MemoryStartup,MemoryAssigned,DynamicMemoryEnabled,CheckpointType,Path | ConvertTo-Json -Depth 6 -Compress";
-    internal static string RequireOff => "if ([string]$vm.State -ne 'Off') { throw 'This configuration change requires the VM to be Off.' }\n";
+    /// <summary>Single-quoted PowerShell literal for guest-side scripts.</summary>
     internal static string L(string text) => PowerShellRunner.Literal(text);
-
-    public async Task<JsonElement> InfoAsync(Guid id, CancellationToken ct) => await PowerShell.JsonAsync(Vm(id) + """
-        @{ vm=($vm | Select-Object Id,Name,State,Generation,Version,ProcessorCount,MemoryStartup,MemoryAssigned,MemoryMinimum,MemoryMaximum,DynamicMemoryEnabled,CheckpointType,ParentSnapshotId,Path);
-           firmware=$(if($vm.Generation -eq 2){ Get-VMFirmware -VM $vm | Select-Object @{Name='SecureBoot';Expression={$_.SecureBoot.ToString()}},SecureBootTemplate,PreferredNetworkBootProtocol }else{$null});
-           network=@(Get-VMNetworkAdapter -VM $vm | Select-Object Id,Name,SwitchName,MacAddress,IPAddresses,Status);
-           disks=@(Get-VMHardDiskDrive -VM $vm | Select-Object Path,ControllerType,ControllerNumber,ControllerLocation);
-           dvd=@(Get-VMDvdDrive -VM $vm | Select-Object Path,ControllerNumber,ControllerLocation);
-           com=@(Get-VMComPort -VM $vm | Select-Object Name,Path);
-           integration=@(Get-VMIntegrationService -VM $vm | Select-Object Id,Name,Enabled,PrimaryStatusDescription)
-        } | ConvertTo-Json -Depth 8 -Compress
-        """, ct);
 
     public async Task<Guid> CheckpointIdAsync(Guid id, string checkpoint, CancellationToken ct)
     {
@@ -87,7 +87,7 @@ internal sealed class ControlService : IDisposable
 
     public void Dispose()
     {
-        Console.Dispose(); Debugger.Dispose();
+        Console.Dispose(); Debugger.Dispose(); Jobs.Dispose();
         foreach (var gate in UiGates.Values) gate.Dispose();
     }
 }
