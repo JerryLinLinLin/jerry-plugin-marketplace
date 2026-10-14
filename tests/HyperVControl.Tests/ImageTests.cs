@@ -332,7 +332,7 @@ internal static class ImageTests
         check(isoDeploy && isoDeployResult.GetProperty("error").GetString()!.Contains("installation media") && !Directory.Exists(Path.Combine(vms, "Lab Media")),
             "deploy refuses an ISO entry before touching the host");
 
-        // Deploy: per-VM disk, VM creation and lab defaults, rendered against the mock.
+        // Deploy: per-VM disk, then the VM through the lifecycle create path, rendered against the mock.
         mock.ClearCalls();
         var (winFailed, win) = await Call(tools.ImageTool("deploy", imageName: "Win Template", vmName: "Lab Win", vmPath: vms, notes: "lab notes", memoryMb: 6144, processors: 3));
         var calls = mock.Calls();
@@ -340,32 +340,35 @@ internal static class ImageTests
         var newVhd = calls.Single(c => c.Cmdlet == "New-VHD").Parameters;
         var newVm = calls.Single(c => c.Cmdlet == "New-VM").Parameters;
         var setVm = calls.Single(c => c.Cmdlet == "Set-VM").Parameters;
-        var firmware = calls.Single(c => c.Cmdlet == "Set-VMFirmware").Parameters;
+        var setMemory = calls.Single(c => c.Cmdlet == "Set-VMMemory").Parameters;
+        var firmwareCalls = calls.Where(c => c.Cmdlet == "Set-VMFirmware").Select(c => c.Parameters).ToList();
         check(!winFailed && newVhd.GetProperty("Path").GetString() == winDisk && newVhd.GetProperty("ParentPath").GetString() == template && newVhd.GetProperty("Differencing").GetBoolean()
             && newVm.GetProperty("VHDPath").GetString() == winDisk && newVm.GetProperty("Path").GetString() == vms && newVm.GetProperty("Generation").GetInt32() == 2
             && newVm.GetProperty("MemoryStartupBytes").GetInt64() == 6144L << 20 && newVm.GetProperty("SwitchName").GetString() == "Default Switch"
             && calls.Any(c => c.Cmdlet == "Set-VMProcessor" && c.Parameters.GetProperty("Count").GetInt32() == 3),
             "Linked deploy creates a differencing child under the VM folder and the VM on the Default Switch (resolved by ID)");
-        check(setVm.GetProperty("StaticMemory").GetBoolean() && !setVm.GetProperty("AutomaticCheckpointsEnabled").GetBoolean()
+        check(!setMemory.GetProperty("DynamicMemoryEnabled").GetBoolean() && !setVm.GetProperty("AutomaticCheckpointsEnabled").GetBoolean()
             && setVm.GetProperty("CheckpointType").GetString() == "Standard" && setVm.GetProperty("Notes").GetString() == "lab notes" && !setVm.TryGetProperty("EnhancedSessionTransportType", out _)
-            && firmware.GetProperty("EnableSecureBoot").GetString() == "On" && firmware.GetProperty("SecureBootTemplate").GetString() == "MicrosoftWindows"
-            && calls.Any(c => c.Cmdlet == "Set-VMKeyProtector" && c.Parameters.GetProperty("NewLocalKeyProtector").GetBoolean()) && !mock.Called("Start-VM"),
-            "Windows lab defaults: static memory, no automatic checkpoints, Standard checkpoints, MicrosoftWindows Secure Boot, a local key protector");
+            && firmwareCalls.Any(f => f.TryGetProperty("SecureBootTemplate", out var t) && t.GetString() == "MicrosoftWindows")
+            && firmwareCalls.Any(f => f.TryGetProperty("EnableSecureBoot", out var e) && e.GetString() == "On")
+            && calls.Any(c => c.Cmdlet == "Set-VMKeyProtector" && c.Parameters.GetProperty("NewLocalKeyProtector").GetBoolean()) && mock.Called("Enable-VMTPM") && !mock.Called("Start-VM"),
+            "Windows lab defaults: static memory, no automatic checkpoints, Standard checkpoints, MicrosoftWindows Secure Boot, a local key protector and a vTPM");
         int Index(string cmdlet) => calls.ToList().FindIndex(c => c.Cmdlet == cmdlet);
         check(Index("New-VHD") < Index("New-VM") && Index("New-VM") < Index("Set-VM") && Index("Set-VM") < Index("Set-VMFirmware")
             && Index("Set-VMFirmware") < Index("Set-VMKeyProtector") && Index("Set-VMKeyProtector") < Index("Enable-VMTPM"),
             "Order: New-VHD, New-VM, Set-VM, Set-VMFirmware, Set-VMKeyProtector, Enable-VMTPM (template before the vTPM locks it)");
         var winLibrary = JsonNode.Parse(File.ReadAllText(Path.Combine(root, "library.json")))!["entries"]!.AsArray().Single(e => e!["name"]!.GetValue<string>() == "Win Template")!;
         check(win.GetProperty("disk").GetProperty("type").GetString() == "differencing" && win.GetProperty("disk").GetProperty("parentPath").GetString() == template
-            && win.GetProperty("vm").GetProperty("Name").GetString() == "Lab Win" && winLibrary["deployments"]!.AsArray().Count == 1
+            && win.GetProperty("vm").GetProperty("Name").GetString() == "Lab Win" && win.GetProperty("vm").GetProperty("Firmware").ValueKind == JsonValueKind.Object
+            && win.GetProperty("vm").GetProperty("Security").ValueKind == JsonValueKind.Object && winLibrary["deployments"]!.AsArray().Count == 1
             && winLibrary["deployments"]![0]!["diskPath"]!.GetValue<string>() == winDisk,
-            "Deploy returns the VM, the child disk and its parent, and records the deployment in library.json");
+            "Deploy returns the VM with firmware and security, the child disk and its parent, and records the deployment in library.json");
 
         mock.ClearCalls();
         var (linuxFailed, linuxVm) = await Call(tools.ImageTool("deploy", imageName: "Test Linux", vmName: "Lab Linux", vmPath: vms, start: true, switchName: "Lab Private"));
         calls = mock.Calls();
-        firmware = calls.Single(c => c.Cmdlet == "Set-VMFirmware").Parameters;
-        check(!linuxFailed && firmware.GetProperty("EnableSecureBoot").GetString() == "Off" && !firmware.TryGetProperty("SecureBootTemplate", out _)
+        var linuxFirmware = calls.Where(c => c.Cmdlet == "Set-VMFirmware").Select(c => c.Parameters).ToList();
+        check(!linuxFailed && linuxFirmware.Any(f => f.TryGetProperty("EnableSecureBoot", out var e) && e.GetString() == "Off")
             && calls.Single(c => c.Cmdlet == "Set-VM").Parameters.GetProperty("EnhancedSessionTransportType").GetString() == "HvSocket"
             && !mock.Called("Enable-VMTPM") && !mock.Called("Set-VMKeyProtector") && mock.Called("Start-VM") && linuxVm.GetProperty("started").GetBoolean()
             && calls.Single(c => c.Cmdlet == "New-VM").Parameters.GetProperty("SwitchName").GetString() == "Lab Private"
@@ -374,8 +377,9 @@ internal static class ImageTests
 
         mock.ClearCalls();
         var (_, plainVm) = await Call(tools.ImageTool("deploy", imageName: "Ubuntu Plain", vmName: "Lab Plain", vmPath: vms));
-        firmware = mock.Calls().Single(c => c.Cmdlet == "Set-VMFirmware").Parameters;
-        check(firmware.GetProperty("EnableSecureBoot").GetString() == "On" && firmware.GetProperty("SecureBootTemplate").GetString() == "MicrosoftUEFICertificateAuthority"
+        var plainFirmware = mock.Calls().Where(c => c.Cmdlet == "Set-VMFirmware").Select(c => c.Parameters).ToList();
+        check(plainFirmware.Any(f => f.TryGetProperty("EnableSecureBoot", out var e) && e.GetString() == "On")
+            && plainFirmware.Any(f => f.TryGetProperty("SecureBootTemplate", out var t) && t.GetString() == "MicrosoftUEFICertificateAuthority")
             && plainVm.GetProperty("disk").GetProperty("type").GetString() == "differencing",
             "Linux without a catalog setting keeps Secure Boot on with the Microsoft UEFI CA template");
 
@@ -383,7 +387,7 @@ internal static class ImageTests
         var (copyFailed, copied) = await Call(tools.ImageTool("deploy", imageName: "Test Direct VHDX", vmName: "Lab Copy", vmPath: vms, linked: false));
         var copyDisk = Path.Combine(vms, "Lab Copy", "Virtual Hard Disks", "Lab Copy.vhdx");
         check(!copyFailed && !mock.Called("New-VHD") && File.ReadAllBytes(copyDisk).AsSpan().SequenceEqual(plain) && !File.GetAttributes(copyDisk).HasFlag(FileAttributes.ReadOnly)
-            && mock.Calls().Single(c => c.Cmdlet == "Set-VMFirmware").Parameters.GetProperty("EnableSecureBoot").GetString() == "Off"
+            && mock.Calls().Any(c => c.Cmdlet == "Set-VMFirmware" && c.Parameters.TryGetProperty("EnableSecureBoot", out var e) && e.GetString() == "Off")
             && copied.GetProperty("warnings").EnumerateArray().Any(w => w.GetString()!.Contains("'other'")),
             "A full-copy deploy copies the image into the VM folder; an unknown OS family gets Secure Boot off with a warning");
 

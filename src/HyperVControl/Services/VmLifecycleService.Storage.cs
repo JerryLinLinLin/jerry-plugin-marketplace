@@ -219,8 +219,10 @@ internal sealed partial class VmLifecycleService
         $__export = [System.IO.Path]::Combine($__root, '.hyperv-control-export-' + [guid]::NewGuid().ToString('N'))
         $__createdTarget = -not [System.IO.Directory]::Exists($__target)
         $__clone = $null
+        $__restore = @()
         try {
             [void][System.IO.Directory]::CreateDirectory($__export)
+            $__restore = Suspend-ControlChainReadOnly $vm
             Export-VM -VM $vm -Path $__export
             $__config = @(Microsoft.PowerShell.Management\Get-ChildItem -LiteralPath $__export -Recurse -Filter '*.vmcx' -File | Where-Object { $_.Extension -eq '.vmcx' -and $_.Directory.Name -eq 'Virtual Machines' }) | Select-Object -First 1
             if ($null -eq $__config) { Stop-Control 'HyperVOperationFailed' 'Export-VM produced no virtual machine configuration (.vmcx).' }
@@ -238,6 +240,7 @@ internal sealed partial class VmLifecycleService
             if ($__createdTarget -and [System.IO.Directory]::Exists($__target)) { try { [System.IO.Directory]::Delete($__target, $true) } catch { } }
             throw $__failure
         } finally {
+            Resume-ControlChainReadOnly $__restore
             if ([System.IO.Directory]::Exists($__export)) { try { [System.IO.Directory]::Delete($__export, $true) } catch { [void]$__warnings.Add('Could not delete the temporary export ' + $__export + ': ' + $_.Exception.Message) } }
         }
         [void]$__warnings.Add('The clone is a copy of the same guest installation and vTPM (same computer name, SID and TPM identity); generalize the source with sysprep first when both must be on one network or domain.')

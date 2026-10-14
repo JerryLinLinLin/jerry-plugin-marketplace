@@ -101,6 +101,30 @@ internal static class LifecycleTests
             check(unknownAction.IsError == true && document.RootElement.GetProperty("ok").ValueKind == JsonValueKind.False
                 && document.RootElement.GetProperty("errorType").GetString() == "ArgumentException",
                 "Argument errors keep the same envelope with the exception type as errorType");
+
+        // Export clears the read-only attribute on chain parents for the duration of the export and restores it (Export-VM fails otherwise).
+        var exportDir = Path.Combine(Path.GetTempPath(), "HyperVControl-export-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(exportDir);
+        var parentDisk = Path.Combine(exportDir, "parent.vhdx"); var childDisk = Path.Combine(exportDir, "child.vhdx");
+        File.WriteAllBytes(parentDisk, new byte[16]); File.WriteAllBytes(childDisk, new byte[16]);
+        File.SetAttributes(parentDisk, File.GetAttributes(parentDisk) | FileAttributes.ReadOnly);
+        var linkedVm = Guid.NewGuid();
+        using (var exportMock = new MockHyperV(new
+        {
+            vms = new object[] { new { id = linkedVm, name = "Lab Linked", state = "Off", generation = 2, processorCount = 2, memoryStartup = 1073741824L, dynamicMemory = false, disks = new[] { childDisk }, snapshots = Array.Empty<object>() } },
+            switches = Array.Empty<object>(),
+            vhds = new object[] { new { path = childDisk, type = "Differencing", parentPath = parentDisk, size = 2147483648L }, new { path = parentDisk, type = "Dynamic", size = 2147483648L } }
+        }))
+        using (var exportService = new ControlService())
+        {
+            var exported = await exportService.Lifecycle.ExportAsync("Lab Linked", Path.Combine(exportDir, "out"), default);
+            var restored = exported.GetProperty("readOnlyParentsRestored").EnumerateArray().Select(p => p.GetString()).ToList();
+            check(exported.GetProperty("success").GetBoolean() && exportMock.Called("Export-VM") && restored.Count == 1
+                && string.Equals(restored[0], parentDisk, StringComparison.OrdinalIgnoreCase) && File.GetAttributes(parentDisk).HasFlag(FileAttributes.ReadOnly),
+                "Export clears a read-only differencing parent for Export-VM and restores the attribute afterwards");
+        }
+        File.SetAttributes(parentDisk, FileAttributes.Normal);
+        try { Directory.Delete(exportDir, true); } catch (IOException) { }
     }
 
     private static async Task<HyperVOperationException?> Expect(Func<Task> action)

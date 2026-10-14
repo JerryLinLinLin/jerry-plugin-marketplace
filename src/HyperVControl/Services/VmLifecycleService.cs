@@ -514,8 +514,12 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
         return runner.InvokeAsync(s.Line(Refresh).Returns(Projection), ct);
     }
 
+    /// <summary>Exports the VM with its checkpoint chain; read-only parents in the chain are writable for the export only.</summary>
     public Task<JsonElement> ExportAsync(string machine, string destination, CancellationToken ct) => runner.InvokeAsync(
-        new HyperVScript().Vm(machine).Cmd("Export-VM", ("VM", VmRef), ("Path", PsValue.Of(ControlService.FullPath(destination)))).Returns(Success), ct, 1800);
+        Script().Vm(machine)
+            .Line("$__restore = Suspend-ControlChainReadOnly $vm")
+            .Line("try { " + Render("Export-VM", ("VM", VmRef), ("Path", PsValue.Of(ControlService.FullPath(destination)))) + " } finally { Resume-ControlChainReadOnly $__restore }")
+            .Returns("@{ success = $true; readOnlyParentsRestored = @($__restore) }"), ct, 1800);
 
     public Task<JsonElement> ImportAsync(string configurationPath, string vmDestination, string vhdDestination, CancellationToken ct) => runner.InvokeAsync(
         Script().Cmd("$vm = Import-VM",

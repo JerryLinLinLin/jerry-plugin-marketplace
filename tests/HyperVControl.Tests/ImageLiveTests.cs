@@ -110,7 +110,7 @@ internal static class ImageLiveTests
             var vm = deployed.GetProperty("vm");
             Pass(deployed.GetProperty("disk").GetProperty("type").GetString() == "differencing"
                 && string.Equals(deployed.GetProperty("disk").GetProperty("parentPath").GetString(), imagePath, StringComparison.OrdinalIgnoreCase)
-                && deployed.GetProperty("firmware").GetProperty("SecureBoot").GetString() == "Off"
+                && vm.GetProperty("Firmware").GetProperty("SecureBoot").GetString() == "Off"
                 && vm.GetProperty("EnhancedSessionTransportType").GetString() == "HvSocket" && !vm.GetProperty("DynamicMemoryEnabled").GetBoolean()
                 && !vm.GetProperty("AutomaticCheckpointsEnabled").GetBoolean() && vm.GetProperty("CheckpointType").GetString() == "Standard"
                 && deployed.GetProperty("started").GetBoolean() && File.GetAttributes(imagePath).HasFlag(FileAttributes.ReadOnly),
@@ -145,7 +145,7 @@ internal static class ImageLiveTests
 
             // 5. Stop, remove the VM and its disk, then the library entry and the image file.
             await call("hyperv_power", new { machine = vmId, action = "turn_off" }, label: "images-live-turn-off");
-            await call("hyperv_vm_remove", new { machineId = vmId }, label: "images-live-vm-remove");
+            await call("hyperv_vm_remove", new { machine = vmId, deleteDisks = true }, label: "images-live-vm-remove");
             var removedId = vmId;
             vmId = null;
             await DeleteVmFolderAsync(vmRoot, vmName);
@@ -190,7 +190,7 @@ internal static class ImageLiveTests
                 if (!name.StartsWith(Prefix, StringComparison.Ordinal) || (name != vmName && id != vmId)) continue;
                 await call("hyperv_console", new { action = "close", machine = id }, allowError: true, label: "images-live-cleanup-console");
                 await call("hyperv_power", new { machine = id, action = "turn_off" }, allowError: true, label: "images-live-cleanup-turn-off");
-                await call("hyperv_vm_remove", new { machineId = id }, allowError: true, label: "images-live-cleanup-vm-remove");
+                await call("hyperv_vm_remove", new { machine = id, deleteDisks = true }, allowError: true, label: "images-live-cleanup-vm-remove");
                 steps.Add(new { name = "cleanup removed VM " + id, seconds = 0.0, detail = (object?)null });
             }
         }

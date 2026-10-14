@@ -144,6 +144,28 @@ internal static class VmScriptLibrary
             [System.IO.File]::SetAttributes($Path, [System.IO.FileAttributes]$attributes)
         }
 
+        # Export-VM fails with 'Access is denied' (0x80070005) when any disk in a VM's chain, typically a
+        # differencing parent the plugin marked read-only, carries the read-only attribute (observed on
+        # Windows 11 26200). Clear it for the duration of an export and restore it afterwards.
+        function Suspend-ControlChainReadOnly($Vm) {
+            $cleared = New-Object System.Collections.ArrayList
+            $drives = @(Get-VMHardDiskDrive -VM $Vm)
+            foreach ($checkpoint in @(Get-VMSnapshot -VM $Vm)) { $drives += @(Get-VMHardDiskDrive -VMSnapshot $checkpoint) }
+            foreach ($drive in $drives) {
+                if ([string]::IsNullOrWhiteSpace([string]$drive.Path)) { continue }
+                foreach ($link in @(Get-ControlVhdChain ([string]$drive.Path))) {
+                    $path = [string]$link.Path
+                    if (-not [System.IO.File]::Exists($path) -or $cleared.Contains($path)) { continue }
+                    if (([System.IO.File]::GetAttributes($path) -band [System.IO.FileAttributes]::ReadOnly) -ne 0) { Set-ControlReadOnly $path $false; [void]$cleared.Add($path) }
+                }
+            }
+            return ,$cleared.ToArray()
+        }
+
+        function Resume-ControlChainReadOnly([string[]]$Paths) {
+            foreach ($path in @($Paths)) { try { if ([System.IO.File]::Exists($path)) { Set-ControlReadOnly $path $true } } catch { } }
+        }
+
         # A VM without a key protector returns only a short empty marker from Get-VMKeyProtector.
         function Test-ControlKeyProtector($Vm) {
             try { $protector = Get-VMKeyProtector -VM $Vm } catch { return $null }
@@ -292,14 +314,17 @@ internal static class VmScriptLibrary
             $checkpoints = @(Get-VMSnapshot -VM $Vm)
             $drives = @(Get-VMHardDiskDrive -VM $Vm)
             foreach ($checkpoint in $checkpoints) { $drives += @(Get-VMHardDiskDrive -VMSnapshot $checkpoint) }
+            $parents = [ordered]@{}
             foreach ($drive in $drives) {
                 if ([string]::IsNullOrWhiteSpace([string]$drive.Path)) { continue }
+                $base = $false
                 foreach ($link in @(Get-ControlVhdChain ([string]$drive.Path))) {
                     $path = [string]$link.Path
                     $key = Get-ControlPathKey $path
+                    if ($base) { if (-not $parents.Contains($key)) { $parents[$key] = $path }; continue }
                     if ($path -match '\.avhdx?$') { $merge[$key] = $path; continue }
                     $own[$key] = $path
-                    break
+                    $base = $true
                 }
             }
             $references = Get-ControlDiskReferences $Vm
@@ -315,6 +340,12 @@ internal static class VmScriptLibrary
                 if ($null -eq $reason -and $references.Unreadable -gt 0) { $reason = 'Hyper-V could not read ' + $references.Unreadable + ' VM(s), so their use of this file cannot be ruled out' }
                 if ($null -eq $reason -and -not $DeleteDisks) { $reason = 'deleteDisks is false' }
                 if ($null -eq $reason) { [void]$delete.Add($path) } else { [void]$keep.Add([pscustomobject][ordered]@{ path = $path; reason = $reason }) }
+            }
+            # Parents beyond the VM's own base disk (a linked clone's template, or the parent copied in by a full
+            # clone) are reported, never deleted here: hyperv_vhd delete removes one once no disk uses it.
+            foreach ($key in @($parents.Keys)) {
+                if ($own.Contains($key)) { continue }
+                [void]$keep.Add([pscustomobject][ordered]@{ path = $parents[$key]; reason = 'differencing parent of this VM''s disk, not owned by the VM; delete it with hyperv_vhd once no disk uses it' })
             }
             foreach ($dvd in @(Get-VMDvdDrive -VM $Vm | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.Path) })) {
                 [void]$keep.Add([pscustomobject][ordered]@{ path = [string]$dvd.Path; reason = 'ISO media is never deleted' })

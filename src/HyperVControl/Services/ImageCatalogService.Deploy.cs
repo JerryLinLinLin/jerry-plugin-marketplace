@@ -5,16 +5,12 @@ namespace HyperVControl.Services;
 /// <summary>Deploying a VM from a library entry with the lab defaults.</summary>
 internal sealed partial class ImageCatalogService
 {
-    private const string VmProjection = "($vm | Select-Object Id,Name,@{Name='State';Expression={[string]$_.State}},Generation,ProcessorCount,MemoryStartup,DynamicMemoryEnabled,"
-        + "@{Name='CheckpointType';Expression={[string]$_.CheckpointType}},AutomaticCheckpointsEnabled,"
-        + "@{Name='EnhancedSessionTransportType';Expression={[string]$_.EnhancedSessionTransportType}},Path,Notes)";
 
     /// <summary>
     /// Creates a VM from a library entry: a differencing child of the entry (linked, the default) or a full copy under
-    /// the VM's folder, the VM through <see cref="VmLifecycleService.CreateAsync"/>, then the lab defaults in one script:
-    /// static memory, automatic checkpoints off, Standard checkpoints, Secure Boot per OS family (off when the image
-    /// says so), HvSocket enhanced session for Linux, and a vTPM for Windows (after the template, which the vTPM locks).
-    /// Any failure removes the half-created VM and its new disk.
+    /// the VM's folder, then the VM through <see cref="VmLifecycleService.CreateAsync"/> with the image's OS family and
+    /// Secure Boot setting, which applies the lab defaults (static memory, automatic checkpoints off, Standard checkpoints,
+    /// Secure Boot per OS family, HvSocket for Linux, a vTPM for Windows). Any failure removes the half-created VM and its new disk.
     /// </summary>
     public async Task<object> DeployAsync(ImageDeployRequest request, VmLifecycleService lifecycle, CancellationToken ct)
     {
@@ -40,51 +36,53 @@ internal sealed partial class ImageCatalogService
         string? vmId = null;
         try
         {
-            // 1. One script: refuse a duplicate VM name, resolve the switch, and create the differencing child.
-            var prepare = new HyperVScript()
-                .Line("$name = " + PowerShellRunner.Literal(vmName))
-                .Line("if (@(Get-VM | Where-Object { $_.Name -eq $name }).Count -gt 0) { Stop-Control 'InvalidArgument' (\"A VM named '\" + $name + \"' already exists. Choose another vmName.\") }");
-            if (request.SwitchName is { } requested)
-                prepare.Line("$switchName = " + PowerShellRunner.Literal(requested))
-                    .Line("if (@(Get-VMSwitch | Where-Object { $_.Name -eq $switchName }).Count -eq 0) { Stop-Control 'NotFound' (\"Switch '\" + $switchName + \"' not found. Call hyperv_network list.\") }");
-            else
-                prepare.Line("$switchName = $null")
-                    .Line("try { $default = Get-VMSwitch -Id " + PsValue.Of(Guid.Parse(DefaultSwitchId)).Text + " -ErrorAction Stop; if ($default) { $switchName = [string]@($default)[0].Name } } catch { }");
-            if (request.Linked)
-                prepare.Cmd("$child = New-VHD", ("Path", PsValue.Of(disk)), ("ParentPath", PsValue.Of(entry.Path)), ("Differencing", PsValue.Of(true)));
-            ownsDisk = request.Linked;
-            var prepared = await Runner.InvokeAsync(prepare.Returns("@{ switchName = $switchName }"), ct, 300);
-            var switchName = prepared.TryGetProperty("switchName", out var chosen) && chosen.ValueKind == JsonValueKind.String ? chosen.GetString() : null;
-            if (switchName is null) warnings.Add("No switchName was given and this host has no Default Switch, so the VM's network adapter is not connected.");
-            if (request.Linked) entry = await ProtectParentAsync(store, entry, ct);
-            else
+            // 1. A full copy is made here; a linked child is created by the lifecycle service as part of the VM.
+            if (!request.Linked)
             {
                 ImageFiles.EnsureSpace(directory, new FileInfo(entry.Path).Length, "copying " + entry.Name);
                 ownsDisk = true;
                 await ImageFiles.CopyAsync(entry.Path, disk, null, ct);
             }
 
-            // 2. The VM itself; this is the only call into the lifecycle service.
-            var created = await lifecycle.CreateAsync(vmName, vmRoot, disk, 2, request.MemoryMb, request.Processors, 0, switchName, ct);
+            // 2. The VM, through the one create path: it refuses duplicate names and attached parents before any change,
+            //    resolves the Default Switch by ID, applies the lab defaults (static memory, automatic checkpoints off,
+            //    Standard checkpoints, Secure Boot per OS family, HvSocket for Linux, a vTPM for Windows) and rolls
+            //    back its own half-made VM and disks on failure.
+            var osFamily = entry.OsFamily is "windows" or "linux" ? entry.OsFamily : "other";
+            if (osFamily == "other" && entry.Config.SecureBoot is null)
+                warnings.Add("Secure Boot is off because the image's OS family is 'other'; enable it with hyperv_firmware if the guest supports it.");
+            var created = await lifecycle.CreateAsync(new VmCreateRequest(vmName)
+            {
+                Source = request.Linked ? "linked" : "existing_vhd",
+                VhdPath = disk,
+                ParentPath = request.Linked ? entry.Path : null,
+                Path = vmRoot,
+                MemoryMb = request.MemoryMb,
+                Processors = request.Processors,
+                SwitchName = request.SwitchName,
+                OsFamily = osFamily,
+                SecureBoot = entry.Config.SecureBoot,
+                Notes = request.Notes,
+                Start = request.Start
+            }, ct);
             vmId = created.GetProperty("Id").GetString() ?? throw new HyperVOperationException("New-VM returned no VM ID.", "InvalidResponse");
+            ownsDisk = true;
+            if (request.Linked) entry = await ProtectParentAsync(store, entry, ct);
+            foreach (var warning in created.GetProperty("warnings").EnumerateArray())
+                if (warning.GetString() is { } text) warnings.Add(text);
 
-            // 3. Lab defaults, then the optional start.
-            var configured = await Runner.InvokeAsync(LabDefaults(vmId, entry, request, warnings), ct, 300);
-            if (configured.TryGetProperty("startError", out var startError) && startError.ValueKind == JsonValueKind.String)
-                warnings.Add("The VM was created and configured but did not start: " + startError.GetString());
+            // 3. Record the deployment so remove knows this entry is a live parent.
             var deployment = new ImageDeployment(vmName, vmId, disk, request.Linked, Clock());
             await store.UpdateLibraryAsync(index => index.Find(entry.Name) is { } current
                 ? (Replace(index, current, current with { Deployments = [.. current.Deployments ?? [], deployment] }), true)
                 : (index, false), ct);
+            var state = created.TryGetProperty("State", out var vmState) && vmState.ValueKind == JsonValueKind.String ? vmState.GetString() : null;
             return new
             {
-                vm = configured.GetProperty("vm"),
+                vm = created,
                 disk = new { path = disk, type = request.Linked ? "differencing" : "copy", parentPath = request.Linked ? entry.Path : null },
                 parent = new { entry.Name, entry.Path, entry.Kind, entry.OsFamily, entry.ReadOnly },
-                switchName,
-                firmware = configured.TryGetProperty("firmware", out var firmware) ? firmware : default,
-                security = configured.TryGetProperty("security", out var security) ? security : default,
-                started = request.Start && !(startError.ValueKind == JsonValueKind.String),
+                started = request.Start && string.Equals(state, "Running", StringComparison.OrdinalIgnoreCase),
                 warnings
             };
         }
@@ -93,41 +91,6 @@ internal sealed partial class ImageCatalogService
             await RollbackAsync(vmId, ownsDisk ? disk : null, createdFolder ? folder : directory);
             throw;
         }
-    }
-
-    private static HyperVScript LabDefaults(string vmId, ImageLibraryEntry entry, ImageDeployRequest request, List<string> warnings)
-    {
-        var vm = PsValue.Raw("$vm");
-        var windows = entry.OsFamily == "windows";
-        var linux = entry.OsFamily == "linux";
-        var transport = entry.Config.EnhancedSessionTransportType ?? (linux ? "HvSocket" : null);
-        var script = new HyperVScript().Vm(vmId).RequireOff()
-            .Cmd("Set-VM", ("VM", vm), ("StaticMemory", PsValue.Of(true)), ("AutomaticCheckpointsEnabled", PsValue.Of(false)),
-                ("CheckpointType", PsValue.Token("Standard", "Standard")),
-                ("EnhancedSessionTransportType", transport is null ? null : PsValue.Token(transport, "HvSocket", "VMBus")),
-                ("Notes", request.Notes is null ? null : PsValue.Of(request.Notes)));
-        // Secure Boot follows the image (off when it says so), else the template that matches the OS family.
-        var template = entry.Config.SecureBoot == false ? null
-            : windows ? "MicrosoftWindows"
-            : linux || entry.Config.SecureBoot == true ? "MicrosoftUEFICertificateAuthority"
-            : null;
-        if (template is null)
-        {
-            script.Cmd("Set-VMFirmware", ("VM", vm), ("EnableSecureBoot", PsValue.Token("Off", "On", "Off")));
-            if (entry.Config.SecureBoot is null)
-                warnings.Add("Secure Boot is off because the image's OS family is 'other'; enable it with hyperv_firmware if the guest supports it.");
-        }
-        else
-            script.Cmd("Set-VMFirmware", ("VM", vm), ("EnableSecureBoot", PsValue.Token("On", "On", "Off")),
-                ("SecureBootTemplate", PsValue.Token(template, "MicrosoftWindows", "MicrosoftUEFICertificateAuthority")));
-        // The vTPM comes after the template: initializing it locks the Secure Boot template.
-        if (windows) script.Cmd("Set-VMKeyProtector", ("VM", vm), ("NewLocalKeyProtector", PsValue.Of(true))).Cmd("Enable-VMTPM", ("VM", vm));
-        script.Line("$startError = $null");
-        if (request.Start) script.Line("try { Start-VM -VM $vm } catch { $startError = [string]$_.Exception.Message }");
-        return script.Line("$vm = Get-VM -Id $vm.Id -ErrorAction Stop").Returns(
-            "@{ vm = " + VmProjection
-            + "; firmware = (Get-VMFirmware -VM $vm | Select-Object @{Name='SecureBoot';Expression={[string]$_.SecureBoot}},SecureBootTemplate)"
-            + "; security = (Get-VMSecurity -VM $vm | Select-Object TpmEnabled); startError = $startError }");
     }
 
     private static async Task<ImageLibraryEntry> ProtectParentAsync(ImageLibraryStore store, ImageLibraryEntry entry, CancellationToken ct) =>

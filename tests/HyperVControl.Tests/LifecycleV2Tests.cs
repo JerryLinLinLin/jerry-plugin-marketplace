@@ -319,7 +319,7 @@ internal static class LifecycleV2Tests
         var isoPlan = (await lifecycle.RemoveAsync("Iso VM", true, true, default)).GetProperty("plan");
         var keepPlan = (await lifecycle.RemoveAsync("Snap", false, true, default)).GetProperty("plan");
         check(basePlan.GetProperty("delete").GetArrayLength() == 0 && Reason(basePlan, baseDisk).Contains("differencing parent") && Reason(basePlan, baseDisk).Contains("'Child'")
-            && Texts(childPlan, "delete").SequenceEqual([childDisk]) && childPlan.GetProperty("keep").GetArrayLength() == 0
+            && Texts(childPlan, "delete").SequenceEqual([childDisk]) && childPlan.GetProperty("keep").GetArrayLength() == 1 && Reason(childPlan, baseDisk).Contains("not owned by the VM")
             && Reason(sharedPlan, shared).Contains("attached to VM 'Shared B'")
             && Reason(lonelyPlan, lonely).Contains("lonely-child.vhdx")
             && Reason(isoPlan, iso).Contains("never deleted") && Texts(isoPlan, "delete").SequenceEqual([isoDisk])

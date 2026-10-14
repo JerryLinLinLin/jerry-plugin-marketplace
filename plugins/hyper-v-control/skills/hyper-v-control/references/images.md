@@ -81,7 +81,7 @@ Lab defaults, which differ from Quick Create's on purpose:
 | Enhanced session transport | The image's setting; `HvSocket` for Linux by default |
 | vTPM | Windows only: a local key protector and `Enable-VMTPM`, applied after the Secure Boot template because the vTPM locks it |
 
-The result has the VM (`State`, memory, checkpoint settings, `EnhancedSessionTransportType`), `disk` (`path`, `type`, `parentPath`), `parent`, `switchName`, `firmware`, `security` (`TpmEnabled`), `started` and `warnings`. Kernel debugging needs Secure Boot off; change it with `hyperv_firmware` while the VM is Off.
+The result has the VM as `hyperv_vm_create` returns it (state, memory, checkpoint settings, `EnhancedSessionTransportType`, `Firmware`, `Security` with `TpmEnabled`, `createdFiles`, `nextSteps`), `disk` (`path`, `type`, `parentPath`), `parent`, `started` and `warnings`. `hyperv_vm_create` with `source=image` and `imageName` is the same operation. Kernel debugging needs Secure Boot off; change it with `hyperv_firmware` while the VM is Off.
 
 ## Errors
 
