@@ -20,7 +20,7 @@ The plugin keeps the original project's artwork and licenses, together with main
 
 ## Install and use
 
-Install **Frida Use** from Jerry's Plugin Marketplace in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). Refresh an existing marketplace with the command for your client (a marketplace registered under its earlier name, `my-plugin-marketplace`, must be removed and added again; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install)):
+Install **Frida Use** from Jerry's Plugin Marketplace in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). Refresh an existing marketplace with the command for your client (if you registered it under its earlier name, `my-plugin-marketplace`, follow the per-client steps in the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install)):
 
 ```powershell
 # Codex

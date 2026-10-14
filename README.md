@@ -37,7 +37,14 @@ claude plugin install capstone-binary-patching@jerry-plugin-marketplace
 claude plugin install hyper-v-control@jerry-plugin-marketplace
 ```
 
-If you added this marketplace under its earlier name, `my-plugin-marketplace`, remove that entry (`claude plugin marketplace remove my-plugin-marketplace` or `codex plugin marketplace remove my-plugin-marketplace`) and add it again with the commands above.
+If you registered this marketplace under its earlier name, `my-plugin-marketplace`, the two clients differ. Claude Code keeps the registration name you chose, so update in place:
+
+```powershell
+claude plugin marketplace update my-plugin-marketplace
+claude plugin update rizin-re-toolkit@my-plugin-marketplace
+```
+
+Codex ties installed plugins to the marketplace's declared name, so a refreshed snapshot orphans them. Remove each installed plugin (`codex plugin remove rizin-re-toolkit@my-plugin-marketplace`) and the marketplace (`codex plugin marketplace remove my-plugin-marketplace`), then add the marketplace and the plugins again with the commands above.
 
 In Claude Code, invoke a skill as `/<plugin-id>:<skill-id>`, for example `/rizin-re-toolkit:rizin-re-toolkit`, or describe a relevant task. Follow the plugin's setup guide for its runtime dependencies. Hyper-V Control requires a Windows x64 host with Hyper-V; its MCP launcher handles runtime setup on first start.
 
