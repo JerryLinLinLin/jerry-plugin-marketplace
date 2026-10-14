@@ -17,11 +17,12 @@ Off only: vCPU count (Hyper-V has no vCPU hot add), turning dynamic memory on or
 
 ## Create
 
-`hyperv_vm_create` leaves the VM Off unless `start=true`. Defaults: Generation 2, 4096 MB static memory, 2 vCPUs, a 64 GB dynamic VHDX, Standard checkpoints with automatic checkpoints off, and the Default Switch (else the first switch; pass an empty `switchName` for no network). The VM folder is `<path>\<name>`; `path` defaults to the host's VirtualMachinePath (see `hyperv_capabilities` `hostDefaults`). New disks go to `<path>\<name>\Virtual Hard Disks` when `path` is given, otherwise to the host's VirtualHardDiskPath.
+`hyperv_vm_create` leaves the VM Off unless `start=true`. Defaults: `source=image`, Generation 2, 4096 MB static memory, 2 vCPUs, Standard checkpoints with automatic checkpoints off, and the Default Switch (else the first switch; pass an empty `switchName` for no network). The VM folder is `<path>\<name>`; `path` defaults to the host's VirtualMachinePath (see `hyperv_capabilities` `hostDefaults`). New disks go to `<path>\<name>\Virtual Hard Disks` when `path` is given, otherwise to the host's VirtualHardDiskPath; an image VM's disk always goes to `<path>\<name>\Virtual Hard Disks`.
 
 Sources:
 
-- `new_disk`: an empty disk; attach installation media before the first start.
+- `image` (default): a linked clone (a differencing child, ready in seconds) of `imageName` or, without it, of the default image: `HYPERV_CONTROL_DEFAULT_IMAGE`, else Microsoft's Windows 11 dev environment, a Windows 11 Enterprise evaluation. `imageName` is a library entry, else a catalog image (`catalog` disambiguates). An image the library lacks is fetched first in one `hyperv_jobs` job that then creates the VM; its `result` is the VM, `waitSeconds` (0-3600, default 60) bounds the wait, and a still-running job comes back with `next: "hyperv_jobs action=wait jobId=<id>"`. The Windows image's first use downloads 23.3 GB and extracts a 44.8 GB VHDX (about 69 GB free at the peak): confirm with the user first; `hyperv_image list` shows `defaultImage.inLibrary`. The name, disk path and switch are checked before the download, and a running fetch of the same image is joined. The VM takes the image's OS family and Secure Boot setting with the lab defaults (static memory, Standard checkpoints, automatic checkpoints off, a vTPM for Windows); `vhdPath`, `parentPath`, `isoPath`, `generation`, `diskGb`, dynamic memory, `secureBoot`, `tpm`, `autoCheckpoints` and `checkpointType` are refused (use another source, or change the clone afterwards). See [images](images.md#default-image).
+- `new_disk`: an empty 64 GB dynamic VHDX (`diskGb`); attach installation media before the first start.
 - `iso`: a new disk plus a DVD drive with `isoPath`, set as the first boot device. Windows setup ISOs show "Press any key to boot from CD or DVD" for a few seconds: open the console right after `start` and press a key, or the VM falls through to the empty disk.
 - `existing_vhd`: attaches `vhdPath`; refused when another VM uses that file or it is a differencing parent.
 - `linked`: a differencing disk over `parentPath`, which is then marked read-only; refused when a VM attaches the parent.
@@ -31,7 +32,7 @@ Memory is set static (or dynamic with the given bounds) explicitly, and a Genera
 
 `osFamily` sets the guest defaults: `windows` gets Secure Boot with the MicrosoftWindows template and a vTPM; `linux` gets Secure Boot with the MicrosoftUEFICertificateAuthority template and the HvSocket enhanced-session transport; `other` turns Secure Boot off. A vTPM uses a local key protector, so the VM starts only on hosts holding this host's Shielded VM guardian certificates.
 
-Creation refuses an existing VM name (unless `allowDuplicateName`), an existing target disk file and a disk larger than the volume's free space, before any change. If a later step fails, the half-created VM and its new disks are removed and the original error is returned. Read `warnings` and `nextSteps` in the result.
+Creation refuses an existing VM name (unless `allowDuplicateName`), an existing target disk file and a disk larger than the volume's free space, before any change. If a later step fails, the half-created VM and its new disks are removed and the original error is returned. Read `warnings` and `nextSteps` in the result. An image VM returns `{ vm, disk, parent, started, warnings }` (or the job, when it fetched first); its `warnings` include the image's, such as the evaluation notice: run `slmgr /xpr` in the guest for the evaluation's end date, checkpoint after the first boot, and recreate the VM from the image when it expires.
 
 ## Configure, firmware, media and network
 
