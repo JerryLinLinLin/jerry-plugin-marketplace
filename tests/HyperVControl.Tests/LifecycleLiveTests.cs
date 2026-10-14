@@ -24,6 +24,7 @@ internal static class LifecycleLiveTests
         Directory.CreateDirectory(folder);
         string Name(string part) => Prefix + run + "-" + part;
         var (a, b, c, d) = (Name("a"), Name("b"), Name("clone"), Name("checkpoints"));
+        var (e, f, g, h) = (Name("iso"), Name("existing"), Name("linked"), Name("full"));
         var steps = new List<Step>();
         var leftovers = new List<string>();
         var baselineVms = Machines(await call("hyperv_list", label: "lifecycle-live-baseline-vms"));
@@ -60,6 +61,7 @@ internal static class LifecycleLiveTests
                     && vm.GetProperty("CheckpointType").GetString() == "Standard" && !vm.GetProperty("AutomaticCheckpointsEnabled").GetBoolean()
                     && vm.GetProperty("Firmware").GetProperty("SecureBoot").GetString() == "On" && vm.GetProperty("Firmware").GetProperty("SecureBootTemplate").GetString() == "MicrosoftWindows"
                     && vm.GetProperty("Security").GetProperty("TpmEnabled").GetBoolean() && vm.GetProperty("Security").GetProperty("KeyProtector").GetBoolean() == true
+                    && vm.GetProperty("Firmware").GetProperty("BootOrder")[0].GetProperty("BootType").GetString() == "Drive"
                     && diskA!.StartsWith(folder, StringComparison.OrdinalIgnoreCase) && File.Exists(diskA), "unexpected create result: " + vm.GetRawText());
                 return diskA!;
             });
@@ -109,14 +111,22 @@ internal static class LifecycleLiveTests
                 return "running";
             });
 
-            await Run("static memory resize while Running", async () =>
+            // Runtime resize of static memory needs a booted guest OS that supports it; this VM has none, so
+            // Hyper-V itself refuses. The step checks that the state gate passes the request on and that the
+            // outcome is either the resize or that refusal with memory unchanged, and records which.
+            await Run("static memory resize while Running passes the gate (succeeds only with a booted guest)", async () =>
             {
                 var resized = await Tool("configure-running-memory", "hyperv_vm_configure", new { machine = a, memoryMb = 2048 }, true);
                 var info = await Tool("info-after-resize", "hyperv_vm_info", new { machine = a });
                 var startup = info.GetProperty("memory").GetProperty("startupBytes").GetInt64();
-                Expect(Failure(resized) is null && startup == 2L << 30,
-                    "resize to 2048 MB: " + (Failure(resized) is { } type ? type + ": " + resized.GetProperty("error").GetString() : "no error") + "; startup now " + (startup >> 20) + " MB");
-                return "1024 -> 2048 MB";
+                if (Failure(resized) is null)
+                {
+                    Expect(startup == 2L << 30, "resize reported success but startup memory is " + (startup >> 20) + " MB");
+                    return "1024 -> 2048 MB";
+                }
+                Expect(Failure(resized) == "HyperVOperationFailed" && resized.GetProperty("errorId").GetString()!.StartsWith("OperationFailed,") && startup == 1L << 30,
+                    "unexpected outcome: " + resized.GetRawText() + "; startup now " + (startup >> 20) + " MB");
+                return "NOT RESIZED: Hyper-V refused without a booted guest OS (" + resized.GetProperty("errorId").GetString() + "); memory unchanged at 1024 MB";
             });
 
             await Run("vCPU change while Running refused with the settings that need Off", async () =>
@@ -173,8 +183,9 @@ internal static class LifecycleLiveTests
             await Run("COM port pipe while Running (serial_host)", async () =>
             {
                 var com = await Tool("com-running", "hyperv_kernel_configure", new { machine = a, action = "serial_host", comPort = 2, pipeName = "HyperVControl-validation-lifecycle" }, true);
-                Expect(Failure(com) is null && com.GetProperty("result").GetProperty("Path").GetString() == @"\\.\pipe\HyperVControl-validation-lifecycle", com.GetRawText());
-                return "COM 2 mapped while Running";
+                Expect(Failure(com) is null && com.GetProperty("result").GetProperty("Path").GetString() == @"\\.\pipe\HyperVControl-validation-lifecycle"
+                    && com.GetProperty("result").GetProperty("Note").GetString()!.Contains("turned off and started again"), com.GetRawText());
+                return "COM 2 mapped while Running, with the Generation 2 cold-boot note";
             });
 
             await Run("firmware refused while Running", async () =>
@@ -225,6 +236,47 @@ internal static class LifecycleLiveTests
                 return "local key protector created, vTPM enabled, UEFI CA template";
             });
 
+            await Run("create iso source: DVD added after New-VM and booted first", async () =>
+            {
+                var iso = Path.Combine(folder, "test.iso");
+                WriteIso(iso, Path.Combine(folder, "iso-content"));
+                var vm = await Tool("create-iso", "hyperv_vm_create", new { name = e, path = folder, source = "iso", isoPath = iso, diskGb = 1, memoryMb = 512, tpm = false, switchName = "" });
+                var order = vm.GetProperty("Firmware").GetProperty("BootOrder");
+                Expect(order[0].GetProperty("Device").GetString()!.Equals(iso, StringComparison.OrdinalIgnoreCase) && order[1].GetProperty("BootType").GetString() == "Drive", vm.GetRawText());
+                var removed = await Tool("remove-iso-vm", "hyperv_vm_remove", new { machine = e, deleteDisks = true });
+                Expect(removed.GetProperty("deleted").GetArrayLength() == 1 && File.Exists(iso)
+                    && removed.GetProperty("kept").EnumerateArray().Any(k => k.GetProperty("reason").GetString()!.Contains("ISO")), removed.GetRawText());
+                return "boot order DVD, disk, network; removal deleted the disk and kept the ISO";
+            });
+
+            await Run("create existing_vhd and linked sources", async () =>
+            {
+                var attached = await Tool("create-existing", "hyperv_vm_create", new { name = f, path = folder, source = "existing_vhd", vhdPath = data, memoryMb = 512, tpm = false, switchName = "" });
+                Expect(attached.GetProperty("createdFiles").GetArrayLength() == 0 && attached.GetProperty("Firmware").GetProperty("BootOrder")[0].GetProperty("Device").GetString()!.Equals(data, StringComparison.OrdinalIgnoreCase), attached.GetRawText());
+                var kept = await Tool("remove-existing-keep-disks", "hyperv_vm_remove", new { machine = f });
+                Expect(kept.GetProperty("kept")[0].GetProperty("reason").GetString() == "deleteDisks is false" && File.Exists(data), kept.GetRawText());
+                var linked = await Tool("create-linked", "hyperv_vm_create", new { name = g, path = folder, source = "linked", parentPath = data, memoryMb = 512, tpm = false, switchName = "" });
+                var linkedDisk = linked.GetProperty("createdFiles")[0].GetString()!;
+                var parent = await Tool("vhd-inspect-linked-parent", "hyperv_vhd", new { action = "inspect", path = data });
+                Expect(parent.GetProperty("readOnly").GetBoolean() && parent.GetProperty("parentOf")[0].GetProperty("vmName").GetString() == g, parent.GetRawText());
+                var removed = await Tool("remove-linked", "hyperv_vm_remove", new { machine = g, deleteDisks = true });
+                Expect(removed.GetProperty("deleted").GetArrayLength() == 1 && !File.Exists(linkedDisk) && File.Exists(data), removed.GetRawText());
+                return "existing disk attached and kept on removal; linked child created over the read-only parent and deleted with its VM";
+            });
+
+            await Run("full clone: export, import with a new ID, removal", async () =>
+            {
+                var full = await Tool("clone-full", "hyperv_vm_clone", new { machine = a, newName = h, mode = "full", destination = folder });
+                var copy = full.GetProperty("createdFiles")[0].GetString()!;
+                var source = Machines(await call("hyperv_list")).Single(m => m.Name == a);
+                Expect(full.GetProperty("mode").GetString() == "full" && full.GetProperty("Name").GetString() == h && full.GetProperty("Id").GetString() != source.Id
+                    && full.GetProperty("State").GetString() == "Off" && copy.StartsWith(Path.Combine(folder, h), StringComparison.OrdinalIgnoreCase) && File.Exists(copy)
+                    && !Directory.EnumerateDirectories(folder, ".hyperv-control-export-*").Any(), full.GetRawText());
+                var removed = await Tool("remove-full-clone", "hyperv_vm_remove", new { machine = h, deleteDisks = true });
+                Expect(removed.GetProperty("deleted").GetArrayLength() == 1 && !File.Exists(copy) && File.Exists(diskA), removed.GetRawText());
+                return "copied into its own folder with a new ID; the temporary export was removed; the copy was deleted with its VM";
+            });
+
             string? child = null;
             await Run("linked clone", async () =>
             {
@@ -238,7 +290,9 @@ internal static class LifecycleLiveTests
                     && parent.GetProperty("readOnly").GetBoolean() && parent.GetProperty("parentOf").GetArrayLength() == 1
                     && parent.GetProperty("attachedTo")[0].GetProperty("vmName").GetString() == a, clone.GetRawText() + inspect.GetRawText());
                 var info = await Tool("info-clone", "hyperv_vm_info", new { machine = c });
-                Expect(info.GetProperty("security").GetProperty("TpmEnabled").GetBoolean() && info.GetProperty("disks")[0].GetProperty("Chain").GetArrayLength() == 2, info.GetRawText());
+                Expect(info.GetProperty("security").GetProperty("TpmEnabled").GetBoolean() && info.GetProperty("disks")[0].GetProperty("Chain").GetArrayLength() == 2
+                    && info.GetProperty("firmware").GetProperty("BootOrder")[0].GetProperty("BootType").GetString() == "Drive"
+                    && info.GetProperty("memory").GetProperty("dynamicMemoryEnabled").GetBoolean() == false, info.GetRawText());
                 return child!;
             });
 
@@ -337,6 +391,45 @@ internal static class LifecycleLiveTests
 
     private static List<Machine> Machines(JsonElement inventory) => inventory.GetProperty("machines").EnumerateArray()
         .Select(m => new Machine(m.GetProperty("id").GetString()!, m.GetProperty("name").GetString()!, m.GetProperty("state").GetString()!)).ToList();
+
+    /// <summary>Builds a small data ISO (no boot image) with the inbox IMAPI2 file-system image COM API.</summary>
+    private static void WriteIso(string path, string contentFolder)
+    {
+        Directory.CreateDirectory(contentFolder);
+        File.WriteAllText(Path.Combine(contentFolder, "readme.txt"), "Hyper-V Control lifecycle validation media.");
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var type = Type.GetTypeFromProgID("IMAPI2FS.MsftFileSystemImage") ?? throw new InvalidOperationException("IMAPI2FS is not registered.");
+                dynamic image = Activator.CreateInstance(type)!;
+                image.FileSystemsToCreate = 3; // ISO 9660 and Joliet
+                image.VolumeName = "HVCTEST";
+                image.Root.AddTree(contentFolder, false);
+                var stream = (System.Runtime.InteropServices.ComTypes.IStream)image.CreateResultImage().ImageStream;
+                var buffer = new byte[1 << 16];
+                var read = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(sizeof(int));
+                try
+                {
+                    using var file = File.Create(path);
+                    while (true)
+                    {
+                        stream.Read(buffer, buffer.Length, read);
+                        var count = System.Runtime.InteropServices.Marshal.ReadInt32(read);
+                        if (count <= 0) break;
+                        file.Write(buffer, 0, count);
+                    }
+                }
+                finally { System.Runtime.InteropServices.Marshal.FreeCoTaskMem(read); }
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure is not null) throw new InvalidOperationException("Could not build the test ISO: " + failure.Message, failure);
+    }
 
     /// <summary>The errorType of a failed tool call, or null when it succeeded.</summary>
     private static string? Failure(JsonElement result) =>

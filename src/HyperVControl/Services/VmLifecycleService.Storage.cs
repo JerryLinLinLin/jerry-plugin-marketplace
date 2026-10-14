@@ -164,7 +164,9 @@ internal sealed partial class VmLifecycleService
                 Add-VMHardDiskDrive -VM $__clone -ControllerType $__drive.ControllerType -ControllerNumber $__drive.ControllerNumber -ControllerLocation $__drive.ControllerLocation -Path $__links[$__i].Child
             }
             Set-VMProcessor -VM $__clone -Count ([long]$vm.ProcessorCount) -ExposeVirtualizationExtensions:([bool]$__processor.ExposeVirtualizationExtensions)
+            # New-VM enables dynamic memory on current Windows hosts, so the source's memory mode is copied either way.
             if ($__memory.DynamicMemoryEnabled) { Set-VMMemory -VM $__clone -DynamicMemoryEnabled:$true -MinimumBytes ([long]$__memory.Minimum) -MaximumBytes ([long]$__memory.Maximum) -Buffer ([int]$__memory.Buffer) }
+            else { Set-VMMemory -VM $__clone -DynamicMemoryEnabled:$false }
             $__settings = @{ CheckpointType = $vm.CheckpointType; AutomaticCheckpointsEnabled = [bool]$vm.AutomaticCheckpointsEnabled }
             if ($null -ne $vm.EnhancedSessionTransportType) { $__settings.EnhancedSessionTransportType = $vm.EnhancedSessionTransportType }
             Set-VM -VM $__clone @__settings
@@ -173,6 +175,8 @@ internal sealed partial class VmLifecycleService
                 Set-VMFirmware -VM $__clone -SecureBootTemplate ([string]$__firmware.SecureBootTemplate)
                 Set-VMFirmware -VM $__clone -EnableSecureBoot $__firmware.SecureBoot
                 if ($__security.TpmEnabled) { Set-VMKeyProtector -VM $__clone -NewLocalKeyProtector:$true; Enable-VMTPM -VM $__clone }
+                # New-VM puts the network adapter ahead of the disk; the clone boots from its disk first.
+                Set-VMFirmware -VM $__clone -FirstBootDevice (@(Get-VMHardDiskDrive -VM $__clone) | Select-Object -First 1)
             }
             foreach ($__default in @(Get-VMNetworkAdapter -VM $__clone)) { Remove-VMNetworkAdapter -VMNetworkAdapter $__default }
             foreach ($__adapter in $__adapters) {

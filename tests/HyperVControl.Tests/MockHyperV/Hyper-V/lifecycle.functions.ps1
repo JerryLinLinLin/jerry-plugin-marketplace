@@ -218,8 +218,11 @@ function New-VM {
         [System.IO.File]::WriteAllBytes([System.IO.Path]::Combine($configuration, $id.ToUpperInvariant() + '.vmcx'), [byte[]]@())
     }
     $adapter = [pscustomobject]@{ name = 'Network Adapter'; switchName = $(if ($SwitchName) { $SwitchName } else { $null }); mac = '000000000000'; dynamicMac = $true; spoofing = 'Off'; vlan = 0 }
+    # Like New-VM on Windows 11 26200 (observed live): dynamic memory is on (512 MB minimum, 1 TB maximum)
+    # and the network adapter boots ahead of the disk.
     $row = [pscustomobject]@{
-        id = $id; name = $Name; state = 'Off'; generation = $Generation; processorCount = 1; memoryStartup = $MemoryStartupBytes; dynamicMemory = $false
+        id = $id; name = $Name; state = 'Off'; generation = $Generation; processorCount = 1; memoryStartup = $MemoryStartupBytes; dynamicMemory = $true
+        memoryMinimum = [long]536870912; memoryMaximum = [long]1099511627776; firstBoot = 'network'
         disks = $disks; snapshots = @(); path = $vmPath; adapters = @($adapter); secureBoot = 'On'; template = 'MicrosoftWindows'; tpm = $false; keyProtector = $false
         checkpointType = 'Production'; autoCheckpoints = $true
     }

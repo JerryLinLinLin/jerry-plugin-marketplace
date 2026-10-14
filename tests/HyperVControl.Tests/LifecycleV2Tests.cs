@@ -167,8 +167,10 @@ internal static class LifecycleV2Tests
             && newVm.GetProperty("Path").GetString() == box.P("VMs") && newVm.GetProperty("SwitchName").GetString() == "Default Switch" && !newVm.TryGetProperty("BootDevice", out _)
             && Single(mock, "Set-VMProcessor").GetProperty("Count").GetInt64() == 2
             && Single(mock, "Set-VM").GetProperty("CheckpointType").GetString() == "Standard" && !Single(mock, "Set-VM").GetProperty("AutomaticCheckpointsEnabled").GetBoolean()
-            && File.Exists(disk) && created.GetProperty("createdFiles").EnumerateArray().Single().GetString() == disk && created.GetProperty("State").GetString() == "Off",
-            "Create new_disk: default paths from Get-VMHost, Default Switch by ID, typed New-VM, CPU and checkpoint settings; the disk is reported as created");
+            && File.Exists(disk) && created.GetProperty("createdFiles").EnumerateArray().Single().GetString() == disk && created.GetProperty("State").GetString() == "Off"
+            && Single(mock, "Set-VMMemory").GetProperty("DynamicMemoryEnabled").ValueKind == JsonValueKind.False && !Single(mock, "Set-VMMemory").TryGetProperty("MinimumBytes", out _)
+            && !created.GetProperty("DynamicMemoryEnabled").GetBoolean(),
+            "Create new_disk: default paths from Get-VMHost, Default Switch by ID, typed New-VM, static memory set explicitly (New-VM enables dynamic memory), CPU and checkpoint settings; the disk is reported as created");
         var template = First(mock, "Set-VMFirmware", p => p.TryGetProperty("SecureBootTemplate", out _));
         var secureBoot = First(mock, "Set-VMFirmware", p => p.TryGetProperty("EnableSecureBoot", out _));
         var protector = First(mock, "Set-VMKeyProtector", p => Flag(p, "NewLocalKeyProtector"));
@@ -178,6 +180,9 @@ internal static class LifecycleV2Tests
             && created.GetProperty("Security").GetProperty("TpmEnabled").GetBoolean() && created.GetProperty("Firmware").GetProperty("SecureBoot").GetString() == "On"
             && Texts(created, "warnings").Any(w => w.Contains("key protector")) && Texts(created, "nextSteps").Any(s => s.Contains("attach_iso")),
             "Create windows: Secure Boot template before Secure Boot, then a local key protector before Enable-VMTPM; warnings and next steps say why");
+        check(First(mock, "Set-VMFirmware", p => Str(p, "FirstBootDevice") == disk) > tpm
+            && created.GetProperty("Firmware").GetProperty("BootOrder")[0].GetProperty("Device").GetString() == disk,
+            "Create puts the disk ahead of the network adapter that New-VM boots first");
 
         mock.ClearCalls();
         await lifecycle.CreateAsync(new VmCreateRequest("Win B") { DiskGb = 2, Path = box.P("custom") }, default);
@@ -198,8 +203,8 @@ internal static class LifecycleV2Tests
         var dvd = First(mock, "Add-VMDvdDrive", p => Str(p, "Path") == iso && Flag(p, "Passthru"));
         var firstBoot = First(mock, "Set-VMFirmware", p => Str(p, "FirstBootDevice") == "DVD");
         check(isoNew.TryGetProperty("NewVHDPath", out _) && !isoNew.TryGetProperty("BootDevice", out _) && First(mock, "New-VM") < dvd && dvd < firstBoot
-            && First(mock, "Enable-VMTPM") < dvd,
-            "Create iso: New-VM with the disk and no boot device, then Add-VMDvdDrive, then the DVD as first boot device");
+            && First(mock, "Enable-VMTPM") < dvd && First(mock, "Set-VMFirmware", p => Str(p, "FirstBootDevice") == box.P(@"VHDs\Iso A.vhdx")) is >= 0 and var diskFirst && diskFirst < firstBoot,
+            "Create iso: New-VM with the disk and no boot device, then Add-VMDvdDrive, then the DVD as first boot device ahead of the disk");
 
         mock.ClearCalls();
         await lifecycle.CreateAsync(new VmCreateRequest("Attach A") { Source = "existing_vhd", VhdPath = loose }, default);
@@ -479,12 +484,14 @@ internal static class LifecycleV2Tests
         var extra2 = box.File(@"VHDs\extra2.vhdx");
         var ide = box.File(@"VHDs\ide.vhdx");
         var iso = box.File(@"iso\x.iso");
+        var running = Vm("Disk Run", "Running", ("disks", new[] { boot, data }), ("dvd", ""));
+        var saved = Vm("Disk Saved", "Saved");
         using var mock = new MockHyperV(new
         {
             host = Host(box), switches = Switches(),
             vms = new object[]
             {
-                Vm("Disk Run", "Running", ("disks", new[] { boot, data }), ("dvd", "")),
+                running, saved,
                 Vm("Disk Run1", "Running", ("generation", 1), ("disks", new object[] { new { path = ide, controllerType = "IDE", controllerNumber = 0, controllerLocation = 0 } }))
             }
         });
@@ -511,6 +518,13 @@ internal static class LifecycleV2Tests
         check(bootDetach?.ErrorType == "InvalidVmState" && bootDetach.Message.Contains("boot disk") && ideDetach?.ErrorType == "InvalidVmState"
             && shared?.ErrorType == "InvalidArgument" && shared.Message.Contains("attached to VM 'Disk Run'") && !Mutated(mock),
             "Running: the boot disk and IDE disks stay attached, and a disk another VM uses is never attached; nothing changes");
+
+        mock.ClearCalls();
+        var com = await lifecycle.SetComPortAsync(Guid.Parse(Id(running)), 2, @"\\.\pipe\HyperVControl-test", default);
+        var savedCom = await Expect(() => lifecycle.SetComPortAsync(Guid.Parse(Id(saved)), 2, @"\\.\pipe\HyperVControl-test", default));
+        check(Single(mock, "Set-VMComPort").GetProperty("Path").GetString() == @"\\.\pipe\HyperVControl-test" && Single(mock, "Set-VMComPort").GetProperty("Number").GetInt32() == 2
+            && com.GetProperty("Note").GetString()!.Contains("turned off and started again") && savedCom?.ErrorType == "InvalidVmState",
+            "COM port pipes map while Running (with the Generation 2 cold-boot note) and are refused for a Saved VM");
     }
 
     private static async Task VhdAsync(Action<bool, string> check)

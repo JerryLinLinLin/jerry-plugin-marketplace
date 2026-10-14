@@ -296,9 +296,9 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
         s.Line("if ($null -ne $__switch) { " + Render("$vm = New-VM", [.. newVm, ("SwitchName", PsValue.Raw("$__switch.Name"))]) + " } else { " + Render("$vm = New-VM", newVm) + " }");
         if (source is "new_disk" or "iso") s.Line("[void]$__created.Add($__disk)");
         s.Cmd("Set-VMProcessor", ("VM", VmRef), ("Count", PsValue.Of(r.Processors)));
-        if (r.DynamicMemory)
-            s.Cmd("Set-VMMemory", ("VM", VmRef), ("DynamicMemoryEnabled", PsValue.Of(true)),
-                ("MinimumBytes", PsValue.Megabytes(minMb!.Value)), ("MaximumBytes", PsValue.Megabytes(maxMb!.Value)));
+        // New-VM enables dynamic memory on current Windows hosts, so the memory mode is always set explicitly.
+        s.Cmd("Set-VMMemory", ("VM", VmRef), ("DynamicMemoryEnabled", PsValue.Of(r.DynamicMemory)),
+            ("MinimumBytes", r.DynamicMemory ? PsValue.Megabytes(minMb!.Value) : null), ("MaximumBytes", r.DynamicMemory ? PsValue.Megabytes(maxMb!.Value) : null));
         s.Cmd("Set-VM", ("VM", VmRef), ("CheckpointType", PsValue.Token(r.CheckpointType, CheckpointTypes)),
             ("AutomaticCheckpointsEnabled", PsValue.Of(r.AutoCheckpoints)), ("Notes", r.Notes is null ? null : PsValue.Of(r.Notes)),
             ("EnhancedSessionTransportType", os == "linux" ? PsValue.Token("HvSocket", SessionTransports) : null));
@@ -308,6 +308,10 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
             s.Cmd("Set-VMFirmware", ("VM", VmRef), ("SecureBootTemplate", PsValue.Of(template)))
                 .Cmd("Set-VMFirmware", ("VM", VmRef), ("EnableSecureBoot", PsValue.Token(secureBoot ? "On" : "Off", "On", "Off")));
             if (tpm) s.Cmd("Set-VMKeyProtector", ("VM", VmRef), ("NewLocalKeyProtector", PsValue.Of(true))).Cmd("Enable-VMTPM", ("VM", VmRef));
+            // New-VM puts the network adapter ahead of the disk (observed live), so every boot would try PXE first.
+            if (source != "none")
+                s.Line("$__bootDisk = @(Get-VMHardDiskDrive -VM $vm) | Select-Object -First 1")
+                    .Cmd("Set-VMFirmware", ("VM", VmRef), ("FirstBootDevice", PsValue.Raw("$__bootDisk")));
         }
         if (source == "iso" && gen2)
             // Creating a Gen2 VM with -BootDevice CD plus a disk fails (both claim SCSI 0:0): add the drive afterwards.
@@ -527,9 +531,15 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
         .Line($"Get-VMSnapshot -VM $vm | Where-Object {{ $_.Id -eq ([guid]'{checkpointId:D}') }} | Rename-VMSnapshot -NewName {L(newName)}")
         .Returns(Success), ct);
 
-    /// <summary>Maps a COM port to a named pipe and reads the port back.</summary>
+    /// <summary>
+    /// Maps a COM port to a named pipe (Off or Running; verified live) and reads the port back. A Generation 2
+    /// guest detects a newly mapped port only after a full stop and start, which the result notes.
+    /// </summary>
     public Task<JsonElement> SetComPortAsync(Guid machineId, int number, string pipePath, CancellationToken ct) => runner.InvokeAsync(new HyperVScript().Vm(machineId)
         .RequireState(VmStateRules.StateNames("comPort"))
         .Cmd("Set-VMComPort", ("VM", VmRef), ("Number", PsValue.Of(number)), ("Path", PsValue.Of(pipePath)))
-        .Returns($"(Get-VMComPort -VM $vm -Number {number} | Select-Object Name,Path)"), ct);
+        .Line($"$__port = Get-VMComPort -VM $vm -Number {number}")
+        .Line("$__note = $null")
+        .Line("if ([string]$vm.State -eq 'Running' -and [int]$vm.Generation -eq 2) { $__note = 'Mapped while Running: a Generation 2 guest detects a newly mapped COM port only after the VM is turned off and started again, not after a guest restart.' }")
+        .Returns("[ordered]@{ Name = [string]$__port.Name; Path = [string]$__port.Path; Note = $__note }"), ct);
 }
