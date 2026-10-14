@@ -5,7 +5,7 @@ description: Manage Hyper-V VM lifecycle and checkpoints, operate Basic or Enhan
 
 # Hyper-V Control
 
-Use this plugin's `hyperv_*` MCP tools. The runtime is a compiled Windows x64 C# EXE speaking stdio. It requires no Python or user-side SDK. If unavailable, read [runtime and permissions](references/runtime.md).
+Use this plugin's `hyperv_*` MCP tools. The runtime is a compiled Windows x64 C# EXE speaking stdio. It requires no Python or user-side SDK. If unavailable, read [runtime and permissions](references/runtime.md). The first tool call of a session can show a Windows UAC prompt; after `ElevationDeclined`, ask the user before calling again, because each new call prompts again.
 
 Start with `hyperv_capabilities` and `hyperv_list` when host or target state is unknown. Resolve the exact VM name/ID and re-read state before dependent operations. An existing authorization to operate a test VM carries through the requested workflow; ask only for missing credentials or materially new/destructive scope.
 

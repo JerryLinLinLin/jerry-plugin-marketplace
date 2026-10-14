@@ -6,9 +6,21 @@ using System.Text.Json;
 
 namespace HyperVControl.Services;
 
+/// <summary>
+/// The private pipe between a non-elevated <c>--elevate</c> process and its same-user worker: the worker's side
+/// (<see cref="ConnectWorkerAsync"/>), the environment header written before any MCP traffic, and the process checks.
+/// <see cref="ElevationProxy"/> owns the parent's side.
+/// </summary>
 internal static class ElevationBridge
 {
     internal static bool IsAdministrator => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+
+    /// <summary>
+    /// Which process answers tool calls, as <c>hyperv_capabilities</c> reports it: <c>in-process</c> (the MCP server
+    /// itself), <c>elevated-worker</c> (started through UAC) or <c>worker-seam</c> (started without UAC through
+    /// <see cref="ElevationProxy.WorkerVariable"/>).
+    /// </summary>
+    internal static string Mode { get; private set; } = "in-process";
 
     /// <summary>
     /// Process environment does not survive a UAC launch: the elevated worker starts with the
@@ -20,42 +32,18 @@ internal static class ElevationBridge
         || name.StartsWith("HYPERV_GUEST_", StringComparison.OrdinalIgnoreCase)
         || name.Equals("_NT_SYMBOL_PATH", StringComparison.OrdinalIgnoreCase);
 
-    internal static async Task RunAsync()
+    /// <summary>
+    /// The worker's side: connects to the parent's pipe, authenticates the parent and applies the forwarded
+    /// environment. The worker must be elevated unless the parent started it through the test seam
+    /// (<paramref name="seam"/>) with its own token instead of UAC. Accepting that non-elevated worker grants nothing:
+    /// it holds exactly the rights of the same-user parent that launched it. The boundary is the same in both modes:
+    /// the pipe ACL admits only the current user, the parent verifies the connecting process ID, and this side
+    /// verifies the server's process ID and user SID below. An elevated worker passes the first check regardless of
+    /// the flag, so the seam changes nothing on the UAC path.
+    /// </summary>
+    internal static async Task<NamedPipeClientStream> ConnectWorkerAsync(string name, int parentId, bool seam)
     {
-        var pipeName = "HyperVControl-" + Guid.NewGuid().ToString("N");
-        using var pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
-        start.ArgumentList.Add("--worker"); start.ArgumentList.Add(pipeName);
-        start.ArgumentList.Add(Environment.ProcessId.ToString());
-        using var worker = Process.Start(start) ?? throw new InvalidOperationException("Windows did not start the elevated worker.");
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
-        await pipe.WaitForConnectionAsync(timeout.Token);
-        if (!GetNamedPipeClientProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var client) || client != worker.Id)
-            throw new InvalidOperationException("Unexpected elevation bridge client.");
-        await WriteEnvironmentAsync(pipe, Environment.GetEnvironmentVariables(), timeout.Token);
-        using var stop = new CancellationTokenSource();
-        var input = Console.OpenStandardInput().CopyToAsync(pipe, stop.Token);
-        var output = pipe.CopyToAsync(Console.OpenStandardOutput(), stop.Token);
-        await Task.WhenAny(input, output, worker.WaitForExitAsync());
-        if (worker.HasExited && worker.ExitCode != 0)
-            throw new InvalidOperationException($"Elevated worker exited with code {worker.ExitCode}. See {Path.Combine(ControlPaths.DataRoot, "worker-startup-error.txt")}.");
-        if (input.IsCompletedSuccessfully)
-        {
-            // EOF from an MCP client also closes its worker connection.
-            pipe.Disconnect();
-        }
-        stop.Cancel();
-        if (!worker.HasExited)
-        {
-            try { await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (TimeoutException) { worker.Kill(true); }
-        }
-    }
-
-    internal static async Task<NamedPipeClientStream> ConnectWorkerAsync(string name, int parentId)
-    {
-        if (!IsAdministrator || !name.StartsWith("HyperVControl-", StringComparison.Ordinal))
+        if ((!IsAdministrator && !seam) || !name.StartsWith("HyperVControl-", StringComparison.Ordinal))
             throw new InvalidOperationException("Invalid elevated worker invocation.");
         // CurrentUserOnly on a CLIENT compares token Owner, which can become the
         // Administrators group after UAC. The server ACL stays CurrentUserOnly;
@@ -67,8 +55,13 @@ internal static class ElevationBridge
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         foreach (var (variable, value) in await ReadEnvironmentAsync(pipe, timeout.Token))
             Environment.SetEnvironmentVariable(variable, value);
+        Mode = seam ? "worker-seam" : "elevated-worker";
         return pipe;
     }
+
+    /// <summary>The parent's side of the PID check: true when the process connected to <paramref name="pipe"/> is <paramref name="processId"/>.</summary>
+    internal static bool IsPipeClient(NamedPipeServerStream pipe, int processId) =>
+        GetNamedPipeClientProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var client) && client == processId;
 
     /// <summary>Writes the forwarded variables as a 4-byte little-endian length followed by UTF-8 JSON.</summary>
     internal static async Task WriteEnvironmentAsync(Stream pipe, System.Collections.IDictionary environment, CancellationToken ct)

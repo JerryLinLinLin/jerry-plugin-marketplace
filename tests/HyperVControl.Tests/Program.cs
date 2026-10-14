@@ -32,6 +32,7 @@ if (args.Length == 0 || args[0] == "unit")
         await HyperVControl.Tests.ImageTests.RunAsync(Check);
         await HyperVControl.Tests.ImageBuildTests.RunAsync(Check);
         await HyperVControl.Tests.BridgeTests.RunAsync(Check);
+        await HyperVControl.Tests.ElevationProxyTests.UnitAsync(Check);
     }
     catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; return; }
     Console.WriteLine("UNIT PASS");
@@ -78,6 +79,13 @@ if (args[0] is "smoke" or "launcher")
     Check(invalid.GetProperty("ok").GetBoolean() == false, "Tool errors are structured MCP errors");
     var paths = await Call("hyperv_vm_create", new {name="not-created",path="relative",vhdPath="relative"}, true);
     Check(paths.GetProperty("ok").GetBoolean() == false, "Invalid path rejected before host mutation");
+    if (args[0] == "smoke")
+    {
+        var answered = (await Call("hyperv_capabilities")).GetProperty("process");
+        Check(answered.GetProperty("mode").GetString() == "in-process" && answered.GetProperty("elevated").GetBoolean() == ElevationBridge.IsAdministrator,
+            "Without --elevate the server answers tool calls in-process");
+        await HyperVControl.Tests.ElevationProxyTests.SmokeAsync(executable, results, Check);
+    }
     Console.WriteLine("STDIO SMOKE PASS");
     return;
 }
