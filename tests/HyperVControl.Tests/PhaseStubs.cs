@@ -28,9 +28,3 @@ internal static class ImageLiveTests
 {
     internal static Task RunAsync(ToolCall call, Action<bool, string> check, string results) => Task.CompletedTask;
 }
-
-/// <summary>Live validation of golden image builds (phase 3).</summary>
-internal static class ImageBuildLiveTests
-{
-    internal static Task RunAsync(ToolCall call, Action<bool, string> check, string results) => Task.CompletedTask;
-}
