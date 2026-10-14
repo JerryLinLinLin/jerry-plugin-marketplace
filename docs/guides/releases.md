@@ -34,7 +34,7 @@ Use platform identifiers such as `win-x64`. Keep publishing the Rizin runtime ar
 
 ## Build and publish
 
-1. Build and test the runtime. Hyper-V uses `scripts/build-hyperv-control.ps1`; its SDK and framework are pinned in the CI workflow and project. Rizin uses the [build guide](rizin-build.md).
+1. Build and test the runtime. Hyper-V uses `scripts/build-hyperv-control.ps1`; its SDK and framework are pinned in the CI workflow and project, and CI later verifies that a rebuild matches the published executable apart from compiler-recorded build identifiers. Rizin uses the [build guide](rizin-build.md).
 2. Commit matching metadata. Hyper-V's builder writes its `runtime.json` pin from the built executable; Rizin's lock file carries the new `bundleVersion`. Run the repository checks and affected component tests, then merge the PR.
 3. Tag the merged commit. Publish only the builder's runtime assets, notices, inventory, and checksums. Inspect explicit filenames; do not upload an entire shared build directory.
 4. Download the published files, verify their hashes, and exercise the installer in a fresh directory. For Rizin, run `scripts/test-rizin-installer.ps1 -ReleaseDir build\release` against the packaged output before publishing; after updating the pin, `install.ps1 -Destination <fresh directory>` exercises the published release.
