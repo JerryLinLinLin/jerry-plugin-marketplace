@@ -42,7 +42,7 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
     internal const string QemuMissingMessage = "qemu-img was not found; converting the cloud image (QCOW2) to VHDX needs it. Install the QEMU disk image utility for Windows "
         + "(the Cloudbase build Microsoft documents: https://cloudbase.it/qemu-img-windows/, or QEMU for Windows), then set HYPERV_CONTROL_QEMU_IMG to the full path of "
         + "qemu-img.exe as a persistent user or machine environment variable (for example: setx HYPERV_CONTROL_QEMU_IMG \"C:\\Tools\\qemu-img\\qemu-img.exe\"), or put "
-        + "qemu-img.exe on the system PATH. The MCP server forwards HYPERV_CONTROL_* variables from the client's environment to the elevated worker, so the client's own environment works too. A .vhdx imagePath needs no conversion.";
+        + "qemu-img.exe on the system PATH. The MCP server started with --elevate forwards HYPERV_CONTROL_* variables from the client's environment to its elevated worker, so the client's own environment works too. A .vhdx imagePath needs no conversion.";
 
     /// <summary>Test seam: maps a drive letter the scripts report to the directory that C# file steps use.</summary>
     internal Func<char, string> DriveRoot { get; set; } = letter => letter + ":\\";
