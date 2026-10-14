@@ -2,7 +2,7 @@
 
 A plugin for dynamic instrumentation, debugging, and reverse engineering with Frida, focused on Windows. Both the plugin and skill display name are **Frida Use**, and both IDs are `frida-use`. Invoke the skill as `$frida-use` in Codex or `/frida-use:frida-use` in Claude Code, or let automatic skill selection match a relevant task.
 
-The plugin includes all documentation, artwork, and licenses from the original project, together with maintained guides and reusable scripts. Installation and use are independent of the original project directory and Git repository.
+The plugin keeps the original project's artwork and licenses, together with maintained guides and reusable scripts; the imported documentation is [archived in the repository](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/archive/frida-use/README.md) rather than installed. Installation and use are independent of the original project directory and Git repository.
 
 ## Contents
 
@@ -16,17 +16,17 @@ The plugin includes all documentation, artwork, and licenses from the original p
 | Malware analysis, child processes, unpacking, and evidence capture | [malware-analysis.md](skills/frida-use/references/malware-analysis.md) |
 | Reversible argument, return-value, function, and machine-code changes | [patching.md](skills/frida-use/references/patching.md) |
 | Research findings, sources, and outdated practices | [research-sources.md](skills/frida-use/references/research-sources.md) |
-| Imported material and provenance | [migration.md](docs/migration.md) |
+| Imported material and provenance | [Repository archive](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/archive/frida-use/README.md) |
 
 ## Install and use
 
-Install **Frida Use** from Jerry's Plugin Marketplace in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). Refresh an existing marketplace with the command for your client:
+Install **Frida Use** from Jerry's Plugin Marketplace in Codex or Claude Code; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install). Refresh an existing marketplace with the command for your client (a marketplace registered under its earlier name, `my-plugin-marketplace`, must be removed and added again; see the [marketplace setup](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/README.md#install)):
 
 ```powershell
 # Codex
-codex plugin marketplace upgrade my-plugin-marketplace
+codex plugin marketplace upgrade jerry-plugin-marketplace
 # Claude Code
-claude plugin marketplace update my-plugin-marketplace
+claude plugin marketplace update jerry-plugin-marketplace
 ```
 
 The plugin provides a skill, Python helpers, and JavaScript examples. Install the Frida runtime in the analysis environment. No MCP server or account connection is required. An existing `frida-windows-re` installation is not renamed automatically; remove it after confirming that the new plugin works.
@@ -60,4 +60,4 @@ Windows user-mode x86/x64 is the main focus. Check ARM64, remote server/Gadget, 
 
 ## License
 
-Original content: [MIT](LICENSE). Imported Frida website documentation, artwork, and Check Point Anti-Debug-DB material retain their upstream terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Research articles are linked and summarized rather than reproduced in full.
+Original content: [MIT](LICENSE). The bundled Frida artwork retains its upstream terms. The imported Frida website documentation and Check Point Anti-Debug-DB material are archived in the repository and retain their upstream terms; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Research articles are linked and summarized rather than reproduced in full.

@@ -1,6 +1,6 @@
 {
   "name": "capstone-binary-patching",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Instruction-aware binary patching, diffs and rollback through a uv-managed Capstone CLI and focused workflows.",
   "author": {
     "name": "JerryLinLinLin",

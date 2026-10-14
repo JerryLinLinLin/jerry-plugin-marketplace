@@ -15,9 +15,9 @@ Frida and Capstone dependencies are installed by their plugin setup workflows. T
 
 ## Versions and installation
 
-Plugin versions live in `plugins/<id>/plugin.json`. Run `python scripts/check-marketplace.py --sync` after changing them to update both clients' generated manifests. Native runtime versions are independent: Hyper-V records its executable pin in `runtime.json`, and Rizin records its runtime/build inputs in `bundle.lock.json`. A launcher or skill update can ship through the marketplace without rebuilding an unchanged executable.
+Plugin versions live in `plugins/<id>/plugin.json`. Both clients cache an installed plugin by that version string, so bump it whenever installed content changes (skills, references, scripts, or `runtime.json`), then run `python scripts/check-marketplace.py --sync` to update both clients' generated manifests. Native runtime versions are independent of plugin versions: each plugin pins the exact release it installs (tag, asset, SHA-256) in its `runtime.json`, and Rizin's build inputs live in `runtimes/rizin/bundle.lock.json`. A launcher or skill update can ship through the marketplace without rebuilding an unchanged executable.
 
-Hyper-V's launcher downloads and verifies a missing runtime before starting the MCP. Rizin's skill invokes its verified runtime installer when needed. Each component uses its own versioned installation directory. Never use the repository-wide Latest release to resolve a runtime: pin an exact asset, or filter and paginate within the intended runtime stream.
+Hyper-V's launcher downloads and verifies a missing runtime before starting the MCP. Rizin's skill invokes its runtime installer when no usable installation exists. Each component uses its own versioned installation directory. Both installers download only the pinned asset from its release download URL and verify its SHA-256; neither queries the GitHub API or resolves the repository-wide Latest release, so a newer runtime always ships as a plugin update that changes `runtime.json`.
 
 ## Asset naming
 
@@ -30,15 +30,16 @@ Hyper-V's launcher downloads and verifies a missing runtime before starting the 
 | Asset inventory | `<component>-v<version>-release.json` |
 | Checksums | `<component>-v<version>-SHA256SUMS.txt` |
 
-Use platform identifiers such as `win-x64`. Keep established Rizin runtime filenames and `SHA256SUMS` compatible with its installer. Runtime archives contain executable dependencies and support data; marketplace content stays under `plugins/`.
+Use platform identifiers such as `win-x64`. Keep publishing the Rizin runtime archive with its `SHA256SUMS` for manual verification; the installer uses the archive name and hash pinned in `runtime.json`. Runtime archives contain executable dependencies and support data; marketplace content stays under `plugins/`.
 
 ## Build and publish
 
-1. Build and test the runtime. Hyper-V uses `scripts/build-hyperv-control.ps1`; its SDK and framework are pinned in the CI workflow and project. Rizin uses the [build guide](rizin-build.md).
-2. Commit matching runtime pins and metadata. Run the repository checks and affected component tests, then merge the PR.
+1. Build and test the runtime. Hyper-V uses `scripts/build-hyperv-control.ps1`; its SDK and framework are pinned in the CI workflow and project, and CI later verifies that a rebuild matches the published executable apart from compiler-recorded build identifiers. Rizin uses the [build guide](rizin-build.md).
+2. Commit matching metadata. Hyper-V's builder writes its `runtime.json` pin from the built executable; Rizin's lock file carries the new `bundleVersion`. Run the repository checks and affected component tests, then merge the PR.
 3. Tag the merged commit. Publish only the builder's runtime assets, notices, inventory, and checksums. Inspect explicit filenames; do not upload an entire shared build directory.
-4. Download the published files, verify their hashes, and exercise the installer in a fresh directory.
-5. Update the release index above. Keep release notes to a short introduction, user-facing changes, and download/setup links.
+4. Download the published files, verify their hashes, and exercise the installer in a fresh directory. For Rizin, run `scripts/test-rizin-installer.ps1 -ReleaseDir build\release` against the packaged output before publishing; after updating the pin, `install.ps1 -Destination <fresh directory>` exercises the published release.
+5. For Rizin, record the published tag, archive name, and SHA-256 in `plugins/rizin-re-toolkit/runtime.json`, bump the plugin version in `plugins/rizin-re-toolkit/plugin.json`, run the sync command, and merge; installs follow the new pin from then on.
+6. Update the release index above. Keep release notes to a short introduction, user-facing changes, and download/setup links.
 
 Hyper-V outputs four files in `build/hyperv-control/runtime-release`: the EXE, notices, inventory, and checksum file. Rizin outputs its runtime ZIP, manifest, checksums, and any separately produced verification report. Packaging rejects unrelated files in the output directory.
 

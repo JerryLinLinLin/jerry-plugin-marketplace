@@ -6,13 +6,11 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-WINDOWS_PREFIXES = ("src/HyperVControl/", "tests/HyperVControl.Tests/", "plugins/hyper-v-control/", ".github/workflows/")
-WINDOWS_FILES = {
-    ".gitattributes", "HyperVControl.slnx", "scripts/ci-plan.py",
-    "scripts/build-hyperv-control.ps1", "scripts/test-installer.ps1", "scripts/test-release-isolation.ps1",
-    "scripts/test-hyperv-launcher.ps1", "scripts/test-runtime-packaging.py",
-    "plugins/rizin-re-toolkit/skills/rizin-re-toolkit/scripts/install.ps1",
-}
+# Inputs of the Windows job: the Hyper-V build and tests, both runtime installers and
+# their pins, the repository scripts that build or test them, and the workflow itself.
+WINDOWS_PREFIXES = ("src/HyperVControl/", "tests/HyperVControl.Tests/", "plugins/hyper-v-control/",
+                    "plugins/rizin-re-toolkit/", "scripts/", ".github/workflows/")
+WINDOWS_FILES = {".gitattributes", "HyperVControl.slnx"}
 
 
 def windows_required(paths):
@@ -33,7 +31,7 @@ def main():
             event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
             base, head = event["pull_request"]["base"]["sha"], event["pull_request"]["head"]["sha"]
     if base:
-        changed = subprocess.check_output(["git", "diff", "--name-only", "-z", base, head, "--"], cwd=ROOT)
+        changed = subprocess.check_output(["git", "diff", "--name-only", "--no-renames", "-z", base, head, "--"], cwd=ROOT)
         paths = changed.decode("utf-8").rstrip("\0").split("\0") if changed else []
         required = windows_required(paths)
     result = {"windows": str(required).lower()}

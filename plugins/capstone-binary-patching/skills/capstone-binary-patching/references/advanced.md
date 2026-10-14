@@ -67,8 +67,9 @@ execution-state bit separately from Capstone's even decode address.
 Use identical initial registers and memory for before/after runs. Compare return values,
 observable memory, flags and stack state as required by the contract. Include triggering,
 boundary and normal inputs. Executing a single changed instruction does not establish
-whole-function or process correctness. The plugin's `experiments/run_experiments.py` uses
-`unicorn==2.1.4` and distinguishes emulated results from native execution.
+whole-function or process correctness. The repository harness
+[`tests/capstone-binary-patching/run_experiments.py`](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/tests/capstone-binary-patching/run_experiments.py)
+uses `unicorn==2.1.4` and distinguishes emulated results from native execution.
 
 ## 4. File patches versus live process patches
 

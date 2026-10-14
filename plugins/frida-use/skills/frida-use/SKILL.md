@@ -32,9 +32,10 @@ Windows ARM64, managed runtimes, a remote device, or Barebone behaves the same.
 | TLS, crypto, desktop app data-flow or parser tests | [Product security](references/product-security.md) |
 | Why these choices / Chinese and English research | [Research and sources](references/research-sources.md) |
 
-Read only the references relevant to the task. `references/legacy/` and
-`docs/migration/` preserve the complete imported material for historical lookup;
-they contain obsolete examples, not current execution instructions.
+Read only the references relevant to the task. The complete imported material is
+[archived in the repository](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/archive/frida-use/README.md)
+for historical lookup, outside the installed plugin; it contains obsolete examples,
+not current execution instructions.
 
 ## Working sequence
 

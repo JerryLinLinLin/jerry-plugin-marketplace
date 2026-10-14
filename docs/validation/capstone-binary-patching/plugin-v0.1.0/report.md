@@ -22,10 +22,14 @@ Run from the repository root, choosing an output directory that does not exist:
 $env:UV_CACHE_DIR = Join-Path (Get-Location) 'build\capstone-uv-cache'
 $env:UV_PYTHON_INSTALL_DIR = Join-Path (Get-Location) 'build\capstone-python'
 uv python install --no-bin --no-registry 3.13
-uv run --managed-python --locked --python 3.13 '.\plugins\capstone-binary-patching\experiments\run_experiments.py' --out '.\build\capstone-experiments\new-run'
+uv run --managed-python --locked --python 3.13 '.\tests\capstone-binary-patching\run_experiments.py' --out '.\build\capstone-experiments\new-run'
 ```
 
-The [experiment harness](../../../../plugins/capstone-binary-patching/experiments/run_experiments.py)
+After this run, the harness and fixture moved from the plugin's `experiments/` directory to
+`tests/capstone-binary-patching/`; their hashes below were recorded at the old location, and
+the move changed only how `run_experiments.py` locates the CLI and fixture.
+
+The [experiment harness](../../../../tests/capstone-binary-patching/run_experiments.py)
 invokes the plugin's actual CLI entry point. Base and experiment scripts have separate uv
 locks; the optional Keystone dependency is supplied through a version-pinned `--with`.
 The first two rounds also exercised uv environments using an existing CPython 3.13.15
@@ -33,7 +37,7 @@ installation. The final round explicitly used uv-managed Python.
 
 ## Native Windows program execution
 
-MSVC compiled the EXE locally from [fixture.c](../../../../plugins/capstone-binary-patching/experiments/fixture.c).
+MSVC compiled the EXE locally from [fixture.c](../../../../tests/capstone-binary-patching/fixture.c).
 A locally generated Kernel32 import library provides console output and process exit; no test
 EXE was downloaded. The exported `patch_target` supplies the function RVA. The CLI maps its
 VA to a file offset, decodes with Capstone, assembles replacement bytes with Keystone, creates

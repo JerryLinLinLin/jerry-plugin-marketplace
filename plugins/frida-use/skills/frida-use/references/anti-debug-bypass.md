@@ -1,8 +1,10 @@
 # Analyze anti-debug and anti-instrumentation behavior
 
 Use this when a program changes behavior under analysis. The inherited detailed
-encyclopedia is under `legacy/anti-debug-db/`; its OS/version assumptions and
-sample snippets are historical. It is not an automatic list of hooks to install.
+encyclopedia is [archived in the repository](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/archive/frida-use/README.md)
+under `docs/archive/frida-use/references/anti-debug-db/`; its OS/version
+assumptions and sample snippets are historical. It is not an automatic list of
+hooks to install.
 
 ## Distinguish causes
 

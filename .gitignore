@@ -1,8 +1,6 @@
-# Build output
+# Generated files: downloads, fetched sources, binaries, and local experiment output
 build/
-test/
 __pycache__/
 *.pyc
 **/bin/
 **/obj/
-plugins/hyper-v-control/bin/

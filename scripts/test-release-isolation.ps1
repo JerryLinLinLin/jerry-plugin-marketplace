@@ -4,33 +4,8 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 if (-not $ScratchDir) { $ScratchDir = Join-Path $repo ('build\release-isolation-' + [guid]::NewGuid().ToString('N')) }
 New-Item -ItemType Directory -Force -Path $ScratchDir | Out-Null
-$fixture = Join-Path $ScratchDir 'rizin-fixture'
-$fixtureRelease = Join-Path $ScratchDir 'rizin-release'
-$bin = Join-Path $fixture 'rizin\bin'
-New-Item -ItemType Directory -Force -Path $bin,$fixtureRelease | Out-Null
-$source = Join-Path $ScratchDir 'VersionProbe.cs'
-@'
-using System;
-class VersionProbe {
-    static int Main(string[] args) {
-        if (args.Length == 1 && args[0] == "-v") { Console.WriteLine("rizin 0.9.1"); return 0; }
-        return 2;
-    }
-}
-'@ | Set-Content -LiteralPath $source -Encoding UTF8
-# Synthetic version probe only: tests release selection, hashing and installation,
-# not Rizin's analysis engine. The published runtime is checked separately.
-$compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-& $compiler /nologo /target:exe ("/out:" + (Join-Path $bin 'rizin.exe')) $source
-if ($LASTEXITCODE -ne 0) { throw 'Version probe compilation failed.' }
-'{"bundleVersion":"0.3.1","rizinVersion":"0.9.1"}' | Set-Content -LiteralPath (Join-Path $fixture 'rizin\bundle-manifest.json') -Encoding UTF8
-$archiveName = 'rizin-windows-x64-bundle-v0.3.1.zip'
-$archive = Join-Path $fixtureRelease $archiveName
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-[IO.Compression.ZipFile]::CreateFromDirectory($fixture,$archive)
-$archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-"$archiveHash  $archiveName" | Set-Content -LiteralPath (Join-Path $fixtureRelease 'SHA256SUMS') -Encoding ASCII
-$rizinResult = & (Join-Path $PSScriptRoot 'test-installer.ps1') -ReleaseDir $fixtureRelease -ScratchDir (Join-Path $ScratchDir 'Programs\Rizin') | ConvertFrom-Json
+# Rizin: the installer test builds its own synthetic runtime and exercises the pinned download path.
+$rizinResult = & (Join-Path $PSScriptRoot 'test-rizin-installer.ps1') -ScratchDir (Join-Path $ScratchDir 'rizin') | ConvertFrom-Json
 $rizinHash = (Get-FileHash -LiteralPath $rizinResult.executable -Algorithm SHA256).Hash
 
 $plugin = Join-Path $repo 'plugins\hyper-v-control'
@@ -60,7 +35,7 @@ try { & $installer -Destination $badDestination | Out-Null }
 catch { if ($_.Exception.Message -like '*SHA-256 verification failed*') { $rejected=$true } else { throw } }
 if (-not $rejected -or (Test-Path -LiteralPath (Join-Path $badDestination "$($runtime.version)\HyperVControl.exe"))) { throw 'Corrupt runtime was not rejected.' }
 [pscustomobject]@{
-    rizinNamespaceAndPagination=$rizinResult.namespaceIsolation -and $rizinResult.paginationVerified
+    rizinPinnedDownload=$rizinResult.pinnedInstall -and $rizinResult.singleDownload
     pinnedHyperVDownload=$true
     existingHyperVReused=$true
     separateInstallDirectories=$true

@@ -41,10 +41,10 @@ jobs:
       - name: Build self-contained runtime
         shell: pwsh
         run: ./scripts/build-hyperv-control.ps1
-      - name: Verify pinned runtime reproducibility
+      - name: Verify the rebuilt runtime against the pinned release
         shell: pwsh
         run: |
-          git diff --exit-code -- plugins/hyper-v-control/runtime.json
+          python scripts/compare-hyperv-runtime.py --built build/hyperv-control/publish/HyperVControl.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/test-runtime-packaging.py --hyperv-release build/hyperv-control/runtime-release
           exit $LASTEXITCODE

@@ -2,7 +2,9 @@
 
 This is a decision aid; check exact signatures in the installed runtime and the
 [official JavaScript API](https://frida.re/docs/javascript-api/). The complete
-imported API manual is a historical snapshot under `legacy/frida-docs/`.
+imported API manual is a historical snapshot
+[archived in the repository](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/blob/main/docs/archive/frida-use/README.md)
+under `docs/archive/frida-use/references/frida-docs/`.
 
 ## Migrating old examples to Frida 17
 

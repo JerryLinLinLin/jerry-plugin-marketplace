@@ -1,8 +1,10 @@
 """Check marketplace contracts without installing or running plugin dependencies."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
@@ -10,10 +12,16 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 CLAUDE_METADATA_FIELDS = ("name", "version", "description", "author", "homepage", "repository", "license", "keywords")
+DOCS_DIRECTORIES = {"guides", "reference", "validation", "archive"}
 
 
 def read_json(path):
     return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def sha256(path):
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def compatibility_manifest(manifest):
@@ -75,10 +83,18 @@ def check(sync=False):
     require(len(names) == len(set(names)), "Marketplace plugin names must be unique")
     folders = {path.name for path in (ROOT / "plugins").iterdir() if path.is_dir()}
     require(set(names) == folders, "Marketplace entries must match the directories under plugins/")
-    documents = [ROOT / "README.md", ROOT / "CONTRIBUTING.md"] + sorted((ROOT / "docs").rglob("*.md"))
+    # Claude Code clones a marketplace with every submodule into each user's plugin cache.
+    require(not (ROOT / ".gitmodules").exists(), "Do not add Git submodules; fetch build inputs into build/ from a lock file instead")
+    try:
+        index = subprocess.run(["git", "-C", str(ROOT), "ls-files", "--stage"], capture_output=True, text=True, check=True).stdout
+        require(not any(line.startswith("160000 ") for line in index.splitlines()),
+                "Do not add Git submodules (gitlink entries, e.g. a leftover sources/ checkout); delete the directory instead")
+    except (OSError, subprocess.CalledProcessError):
+        pass  # Not a Git checkout (for example an exported tree); .gitmodules is still rejected above.
+    documents = [ROOT / "README.md", ROOT / "CONTRIBUTING.md"] + sorted((ROOT / "docs").rglob("*.md")) + sorted((ROOT / "tests").rglob("*.md"))
     require({path.name for path in (ROOT / "docs").iterdir() if path.is_file()} == {"README.md"},
-            "docs/ root must contain only README.md; place documents under guides/, reference/, or validation/")
-    require({path.name for path in (ROOT / "docs").iterdir() if path.is_dir()} <= {"guides", "reference", "validation"},
+            "docs/ root must contain only README.md; place documents under guides/, reference/, validation/, or archive/")
+    require({path.name for path in (ROOT / "docs").iterdir() if path.is_dir()} <= DOCS_DIRECTORIES,
             "Unexpected docs/ directory; follow the documentation index")
     readmes = [ROOT / "README.md"]
     repository_urls = set()
@@ -125,17 +141,19 @@ def check(sync=False):
                 require(skill_name is not None and skill_name[1] == skill.parent.name,
                         f"{skill.relative_to(ROOT)}: skill name must match its directory")
                 require(bool(re.search(r"^description:\s*\S", frontmatter[1], re.MULTILINE)), f"{name}: missing skill description")
-        documents.extend(skills)
-        documents.append(plugin / "README.md")
+        # Every shipped document, including skill references, must link cleanly.
+        documents.extend(sorted(plugin.rglob("*.md")))
         readmes.append(plugin / "README.md")
         require((plugin / "LICENSE").is_file(), f"{name}: missing license")
+        # Plugins ship only maintained content; maintainer harnesses and imports live in tests/ and docs/archive/.
+        for stray in ("experiments", "docs", "tests"):
+            require(not (plugin / stray).exists(), f"{name}: move {stray}/ out of the installed plugin")
         runtime_path = plugin / "runtime.json"
         if runtime_path.exists():
             runtime = read_json(runtime_path)
-            require(runtime["plugin"] == name, f"{name}: runtime belongs to another plugin")
             require(bool(re.fullmatch(r"[a-fA-F0-9]{64}", runtime["sha256"])), f"{name}: invalid runtime SHA-256")
             expected_url = f'{manifest["repository"]}/releases/download/{runtime["tag"]}/{runtime["asset"]}'
-            require(runtime["url"] == expected_url, f"{name}: runtime URL must match its exact tag and asset")
+            require(runtime["url"] == expected_url, f"{name}: runtime URL must match its tag and asset")
 
     if len(manifests) == len(names):
         generated(ROOT / ".claude-plugin/marketplace.json", claude_marketplace(catalog, manifests))
@@ -148,6 +166,17 @@ def check(sync=False):
     program = (ROOT / "src/HyperVControl/Program.cs").read_text(encoding="utf-8-sig")
     for literal in re.findall(r'(?:Hyper-V Control |Version = ")(\d+\.\d+\.\d+)', program):
         require(literal == hyperv_version, "Hyper-V CLI/protocol version disagrees with its runtime pin")
+
+    # Archived imports stay byte-for-byte; their historical links are not checked.
+    archived = set()
+    for manifest_path in sorted((ROOT / "docs/archive").glob("*/import-manifest.json")):
+        for item in read_json(manifest_path)["files"]:
+            target = ROOT / item["destination"]
+            require(target.is_file(), f"{manifest_path.relative_to(ROOT)}: archived file is missing: {item['destination']}")
+            if target.is_file():
+                require(sha256(target) == item["sha256"], f"{manifest_path.relative_to(ROOT)}: archived file changed: {item['destination']}")
+                archived.add(target.resolve())
+    documents = [document for document in documents if document.resolve() not in archived]
 
     for readme in readmes:
         content = readme.read_text(encoding="utf-8-sig")
@@ -175,7 +204,8 @@ def check(sync=False):
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
     if not errors:
-        print(f"PASS: {len(names)} plugins; Codex/Claude catalogs, manifests and MCP configs, runtime pins, README policy, and entrypoint links")
+        print(f"PASS: {len(names)} plugins; Codex/Claude catalogs, manifests and MCP configs, runtime pins, README policy, "
+              f"plugin content boundaries, archive integrity ({len(archived)} files), and documentation links ({len(documents)} documents)")
     return bool(errors)
 
 

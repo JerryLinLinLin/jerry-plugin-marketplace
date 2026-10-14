@@ -19,7 +19,9 @@ The 30 cases execute actual processes and hooks. Raw local captures remain under
 `build/frida-use-run-05`, `build/frida-cli-run-02`, and `build/frida-portable-run`.
 The retained JSON evidence is accompanied by the CLI transcripts in the same
 validation directory. Reproduction commands and fixture source are in
-[scripts/frida-use-experiments](../../../../scripts/frida-use-experiments).
+[tests/frida-use](../../../../tests/frida-use). The harness moved there from
+`scripts/frida-use-experiments/` after this run, so `artifact-hashes.json`
+records the old paths.
 
 ## Observed behavior
 
