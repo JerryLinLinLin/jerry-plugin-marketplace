@@ -6,6 +6,7 @@ Manage a Hyper-V lab from your AI agent. Create and restore experiments, interac
 
 - **VM management:** create, configure, start, stop, clone, import, and export virtual machines; manage disks and networking.
 - **Images and templates:** list Microsoft's Quick Create gallery or your own catalog, download and verify images into a local library as background jobs, register your own disks, and deploy linked-clone lab VMs from them in seconds with lab-friendly defaults.
+- **Golden images:** build a Windows template from an ISO or Microsoft evaluation media applied offline with an unattend file (local admin, RDP, no device encryption, optional kernel-debug settings), or an Ubuntu template from a cloud image with a NoCloud seed, without ever running Setup interactively.
 - **Repeatable experiments:** inspect checkpoint trees, save a known state, and restore it after testing.
 - **Desktop interaction:** use Basic or Enhanced Session, capture screenshots, send mouse and keyboard input, and work with guest UI Automation.
 - **Guest automation:** run commands and processes, transfer files and folders, and manage reusable credentials.

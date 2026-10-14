@@ -16,6 +16,7 @@ Choose the channel that fits the task:
 | Inventory, creation, hardware, start/stop, export/import | VM tools; no console needed |
 | Obtain a bootable image: Microsoft's gallery or a custom catalog, the local library, verified download and extraction | `image` (`list`, `fetch` as a job, `register`, `remove`, `catalogs`); poll with `jobs` |
 | Create a lab VM from a library image in seconds (linked clone with lab defaults) | `image` `deploy`, or `vm_create` with `source=image` |
+| Build a golden template without running Setup: Windows ISO or evaluation media applied offline with an unattend, or an Ubuntu cloud image with a NoCloud seed | `image_build` (a job); register the sidecar with `image` `register` |
 | Anything that outlives one call: downloads, extraction, export/import, full clones, image builds | `jobs` (`list`, `status`, `wait`, `cancel`) |
 | Reproduce and roll back a test | Checkpoint tools; retain the checkpoint ID and initial power state |
 | Boot, firmware, sign-in, locked desktop, visual clicks | Basic console + inline screenshot + input |
@@ -26,6 +27,6 @@ Choose the channel that fits the task:
 | Debug the VM's kernel | KDNET or two-phase KDCOM, then host KD session |
 | Analyze an existing dump | `debug_open` with `mode=dump`; copy guest dumps to host first |
 
-For lifecycle/rollback details read [VM operations](references/operations.md). For catalogs, the image library, fetch jobs and deployment read [images](references/images.md). For console, keyboard/mouse, clipboard and winapp read [guest interaction](references/interaction.md). For live debugging read [debugging](references/debugging.md).
+For lifecycle/rollback details read [VM operations](references/operations.md). For catalogs, the image library, fetch jobs and deployment read [images](references/images.md). For golden image builds read [image builds](references/image-build.md). For console, keyboard/mouse, clipboard and winapp read [guest interaction](references/interaction.md). For live debugging read [debugging](references/debugging.md).
 
 Read the actual MCP schema for parameter names. Tool failures arrive as `isError` with an explanation; do not interpret process startup, BCD configuration or a timeout as successful attachment/execution. After a mutation, verify through the channel that observes its result. Report unsupported states rather than substituting host input or changing guest security settings silently.
