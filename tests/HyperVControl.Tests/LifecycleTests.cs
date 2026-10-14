@@ -49,25 +49,33 @@ internal static class LifecycleTests
             "Ambiguous names, unknown names and unknown GUIDs classify as AmbiguousName / NotFound");
 
         mock.ClearCalls();
-        var removeRunning = await Expect(() => service.Lifecycle.RemoveAsync(runningVm, default));
+        var removeRunning = await Expect(() => service.Lifecycle.RemoveAsync(runningVm.ToString("D"), false, false, default));
         check(removeRunning?.ErrorType == "InvalidVmState" && !mock.Called("Remove-VM"), "Remove on a Running VM is refused without calling Remove-VM");
         mock.ClearCalls();
-        var removed = await service.Lifecycle.RemoveAsync(offVm, default);
+        var removed = await service.Lifecycle.RemoveAsync(offVm.ToString("D"), false, false, default);
         var removeCall = mock.Calls().Single(c => c.Cmdlet == "Remove-VM");
         check(removed.GetProperty("success").GetBoolean() && removeCall.Parameters.GetProperty("Force").GetBoolean()
             && removeCall.Parameters.GetProperty("VM").GetString() == offVm.ToString("D") && (await service.HyperV.GetInventoryAsync()).Machines.Count == 3,
             "Remove on an Off VM runs Remove-VM -Force for that VM only");
 
+        // Create makes the VM and disk folders, so it runs against a temporary folder.
         mock.ClearCalls();
         var name = "Lab 'quoted' \u7a7a\u95f4; $pwn = 1";
-        var created = await service.Lifecycle.CreateAsync(name, @"C:\MockVMs", @"C:\MockVHDs\new.vhdx", 2, 2048, 2, 20, "Default Switch", default);
-        var newVm = mock.Calls().Single(c => c.Cmdlet == "New-VM").Parameters;
-        check(created.GetProperty("Name").GetString() == name && newVm.GetProperty("Name").GetString() == name
-            && newVm.GetProperty("Generation").GetInt32() == 2 && newVm.GetProperty("MemoryStartupBytes").GetInt64() == 2048L * 1024 * 1024
-            && newVm.GetProperty("NewVHDPath").GetString() == @"C:\MockVHDs\new.vhdx" && newVm.GetProperty("NewVHDSizeBytes").GetInt64() == 20L * 1024 * 1024 * 1024
-            && newVm.GetProperty("SwitchName").GetString() == "Default Switch" && !newVm.TryGetProperty("VHDPath", out _)
-            && mock.Calls().Any(c => c.Cmdlet == "Set-VMProcessor" && c.Parameters.GetProperty("Count").GetInt32() == 2),
-            "Create renders typed New-VM parameters, omits unused ones, and preserves quotes and Unicode in the name as data");
+        var temp = Path.Combine(Path.GetTempPath(), "HyperVControl-create-" + Guid.NewGuid().ToString("N")[..8]);
+        var vhd = Path.Combine(temp, "VHDs", "new.vhdx");
+        try
+        {
+            var created = await service.Lifecycle.CreateAsync(new VmCreateRequest(name)
+            { Path = Path.Combine(temp, "VMs"), VhdPath = vhd, MemoryMb = 2048, DiskGb = 2, SwitchName = "Default Switch" }, default);
+            var newVm = mock.Calls().Single(c => c.Cmdlet == "New-VM").Parameters;
+            check(created.GetProperty("Name").GetString() == name && newVm.GetProperty("Name").GetString() == name
+                && newVm.GetProperty("Generation").GetInt32() == 2 && newVm.GetProperty("MemoryStartupBytes").GetInt64() == 2048L * 1024 * 1024
+                && newVm.GetProperty("NewVHDPath").GetString() == vhd && newVm.GetProperty("NewVHDSizeBytes").GetInt64() == 2L * 1024 * 1024 * 1024
+                && newVm.GetProperty("SwitchName").GetString() == "Default Switch" && !newVm.TryGetProperty("VHDPath", out _)
+                && mock.Calls().Any(c => c.Cmdlet == "Set-VMProcessor" && c.Parameters.GetProperty("Count").GetInt32() == 2),
+                "Create renders typed New-VM parameters, omits unused ones, and preserves quotes and Unicode in the name as data");
+        }
+        finally { try { Directory.Delete(temp, true); } catch (IOException) { } }
 
         var info = await service.Lifecycle.InfoAsync("Lab B", default);
         check(info.GetProperty("vm").GetProperty("Name").GetString() == "Lab B" && info.GetProperty("network").GetArrayLength() == 1

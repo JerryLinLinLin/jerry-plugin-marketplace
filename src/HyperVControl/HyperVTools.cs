@@ -44,23 +44,37 @@ internal sealed partial class HyperVTools(ControlService service)
     };
 
     [McpServerTool(Name = "hyperv_capabilities", ReadOnly = true)]
-    [Description("Probe local Hyper-V rights, host availability, console and guest prerequisites, and installed debugger versions. No VM mutations.")]
-    public Task<CallToolResult> Capabilities(CancellationToken ct) => Run(async () => new
+    [Description("Probe local Hyper-V rights, host availability, console and guest prerequisites, and installed debugger versions. hostDefaults gives the default VM and VHD folders, supported VM configuration versions, Secure Boot templates, Default Switch presence and free space on those volumes. No VM mutations.")]
+    public Task<CallToolResult> Capabilities(CancellationToken ct) => Run(async () =>
     {
-        elevated = ElevationBridge.IsAdministrator, host = await service.HyperV.GetInventoryAsync(ct),
-        debuggers = await service.Debugger.DiscoverAsync(ct),
-        basic = "Hyper-V WMI framebuffer and synthetic input; console window uses RDP ActiveX on port 2179.",
-        enhanced = "Supported guest, Enhanced Session enabled; RDP ActiveX. Capture requires foreground unobscured window.",
-        guest = "PowerShell Direct requires a running Windows guest and guest credentials. UI Automation also needs an unlocked interactive sign-in.",
-        elevation = "Use --elevate to bridge stdio to a same-user UAC worker. Cancelling UAC exits cleanly. Alternate-admin credentials require starting the MCP client in that account."
+        var host = service.HyperV.GetInventoryAsync(ct);
+        var defaults = Probe(() => service.Lifecycle.HostDefaultsAsync(ct));
+        return new
+        {
+            elevated = ElevationBridge.IsAdministrator, host = await host, hostDefaults = await defaults,
+            debuggers = await service.Debugger.DiscoverAsync(ct),
+            basic = "Hyper-V WMI framebuffer and synthetic input; console window uses RDP ActiveX on port 2179.",
+            enhanced = "Supported guest, Enhanced Session enabled; RDP ActiveX. Capture requires foreground unobscured window.",
+            guest = "PowerShell Direct requires a running Windows guest and guest credentials. UI Automation also needs an unlocked interactive sign-in.",
+            elevation = "Use --elevate to bridge stdio to a same-user UAC worker. Cancelling UAC exits cleanly. Alternate-admin credentials require starting the MCP client in that account."
+        };
     });
+
+    /// <summary>A probe section that reports its own failure instead of failing the whole capability report.</summary>
+    private static async Task<object?> Probe(Func<Task<JsonElement>> probe)
+    {
+        try { return await probe(); }
+        catch (OperationCanceledException) { throw; }
+        catch (HyperVOperationException ex) { return new { ok = false, error = ex.Message, errorType = ex.ErrorType }; }
+        catch (Exception ex) { return new { ok = false, error = ex.Message, errorType = ex.GetType().Name }; }
+    }
 
     [McpServerTool(Name = "hyperv_list", ReadOnly = true)]
     [Description("List all local Hyper-V VMs with exact IDs, names, states, memory and CPUs.")]
     public Task<CallToolResult> List(CancellationToken ct) => Run(async () => await service.HyperV.GetInventoryAsync(ct));
 
     [McpServerTool(Name = "hyperv_vm_info", ReadOnly = true)]
-    [Description("Read detailed VM hardware, integration services, disks, network, COM ports and current checkpoint ID.")]
+    [Description("Read one VM's configuration: state, configuration version, creation time, notes, memory (startup, minimum, maximum, buffer), processor (count, nested virtualization), automatic start/stop/checkpoint actions, checkpoint type and count, firmware with boot order (Generation 2) or BIOS order (Generation 1), security (vTPM, key protector), network adapters, disks with their VHD parent chains, DVD drives, COM ports and integration services. The vm object keeps Hyper-V's raw values (State 3 = Off; ParentSnapshotId is the current checkpoint).")]
     public Task<CallToolResult> Info(string machine, CancellationToken ct) => Run(async () => await service.Lifecycle.InfoAsync(machine, ct));
 
     [McpServerTool(Name = "hyperv_power", Destructive = true)]
@@ -111,10 +125,9 @@ internal sealed partial class HyperVTools(ControlService service)
     });
 
     [McpServerTool(Name = "hyperv_firmware", Destructive = true)]
-    [Description("Set and verify Secure Boot on an Off Generation 2 VM. Change only for the requested guest task; debugging tools never disable it automatically.")]
-    public Task<CallToolResult> Firmware(string machine, bool secureBoot, CancellationToken ct) => Run(async () =>
-    {
-        var result = await service.HyperV.SetSecureBootAsync((await service.ResolveAsync(machine, ct)).Id, secureBoot, ct);
-        return Outcome(result.Success, result.Error, result.Capability, result);
-    });
+    [Description("Generation 2 firmware and virtual TPM; changes need the VM Off. Applied in this order: secureBootTemplate (it locks once the vTPM is initialized), secureBoot, tpm (enabling creates a local key protector when the VM has none; disabling makes guest-sealed secrets such as BitLocker keys unavailable), firstBootDevice. Change only what the guest task needs; debugging tools never disable Secure Boot automatically. Omit every setting to read the current state. Returns firmware (with boot order) and security read back and verified after the change.")]
+    public Task<CallToolResult> Firmware(string machine, bool? secureBoot = null,
+        [Description("MicrosoftWindows | MicrosoftUEFICertificateAuthority (Linux and other third-party loaders) | OpenSourceShieldedVM")] string? secureBootTemplate = null,
+        bool? tpm = null, [Description("dvd | disk | network")] string? firstBootDevice = null, CancellationToken ct = default) => Run(async () =>
+        await service.Lifecycle.FirmwareAsync(machine, secureBoot, secureBootTemplate, tpm, firstBootDevice, ct));
 }
