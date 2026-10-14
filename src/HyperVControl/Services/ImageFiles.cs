@@ -85,7 +85,8 @@ internal static class ImageFiles
     /// <summary>Bytes available to this user on the volume holding <paramref name="directory"/> (mount points and UNC paths included).</summary>
     public static long FreeBytes(string directory)
     {
-        if (!GetDiskFreeSpaceExW(Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar, out var available, out _, out _))
+        var path = Path.EndsInDirectorySeparator(directory) ? directory : directory + Path.DirectorySeparatorChar;
+        if (!GetDiskFreeSpaceExW(path, out var available, out _, out _))
             throw new IOException($"Cannot read the free space of {directory} (Win32 error {Marshal.GetLastPInvokeError()}).");
         return (long)Math.Min(available, long.MaxValue);
     }

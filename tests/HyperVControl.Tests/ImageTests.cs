@@ -111,6 +111,7 @@ internal static class ImageTests
         "CD001"u8.CopyTo(isoBytes.AsSpan(0x8801));
         await File.WriteAllBytesAsync(iso, isoBytes);
         check(ImageFiles.HasMagic(iso, ".iso") && !ImageFiles.HasMagic(iso, ".vhdx") && ImageFiles.HasMagic(zip, ".zip"), "Magic bytes: CD001 at 0x8801, PK zip header");
+        check(ImageFiles.FreeBytes(Path.GetPathRoot(temp)!) > 0 && ImageFiles.FreeBytes(temp) > 0, "Free space reads for a drive root and for a folder");
     }
 
     private static async Task LibraryScenarios(Action<bool, string> check, string temp, FixtureServer server)
