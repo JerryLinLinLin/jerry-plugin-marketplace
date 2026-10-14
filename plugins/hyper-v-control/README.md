@@ -4,7 +4,9 @@ Manage a Hyper-V lab from your AI agent. Create and restore experiments, interac
 
 ## What it helps with
 
-- **VM management:** create, configure, start, stop, clone, import, and export virtual machines; manage disks and networking.
+- **VM management:** create a Windows lab VM in one call from Microsoft's Windows 11 dev environment image (an evaluation edition; downloaded once, then linked clones in seconds), or from another library image, a new disk, an ISO, or an existing or linked disk; configure CPU, memory, firmware, vTPM, checkpoints, adapters and automatic actions, with changes gated by what Hyper-V allows while a VM runs; clone (linked in seconds, or full as a job); remove with a dry run and optional, guarded disk deletion; manage disks, switches and NAT networks.
+- **Images and templates:** list Microsoft's Quick Create gallery or your own catalog, download and verify images into a local library as background jobs, choose the default image, register your own disks, and deploy linked-clone lab VMs from them in seconds with lab-friendly defaults.
+- **Golden images:** build a Windows template from an ISO or Microsoft evaluation media applied offline with an unattend file (local admin, RDP, no device encryption, optional kernel-debug settings), or an Ubuntu template from a cloud image with a NoCloud seed, without ever running Setup interactively.
 - **Repeatable experiments:** inspect checkpoint trees, save a known state, and restore it after testing.
 - **Desktop interaction:** use Basic or Enhanced Session, capture screenshots, send mouse and keyboard input, and work with guest UI Automation.
 - **Guest automation:** run commands and processes, transfer files and folders, and manage reusable credentials.
@@ -33,7 +35,7 @@ For an offline machine, use the plugin's `scripts/install.ps1` in your preparati
 
 ## Permissions and guest setup
 
-With `--elevate`, Windows requests administrator approval once when needed. Subsequent operations use the same elevated worker until the MCP session ends. The MCP client can stay unelevated. UAC cancellation exits without operating on VMs; alternate-user elevation is unsupported. See the [permission model](skills/hyper-v-control/references/runtime.md).
+With `--elevate`, starting the MCP server never prompts. Windows asks for administrator approval on the first tool call, once per MCP session: that call and every later one use the same elevated worker until the session ends. The MCP client can stay unelevated. Declining fails only that call, without operating on VMs, and the next call asks again; alternate-user elevation is unsupported. See the [permission model](skills/hyper-v-control/references/runtime.md).
 
 Run `hyperv_capabilities` to inspect the host and available integrations. Windows guest automation needs credentials for PowerShell Direct. UI Automation needs an unlocked interactive guest desktop; Enhanced Session needs guest support and host policy. Basic Session can interact with boot screens and guests without PowerShell Direct.
 

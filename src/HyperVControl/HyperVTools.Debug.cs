@@ -29,7 +29,7 @@ internal sealed partial class HyperVTools
     }
 
     [McpServerTool(Name = "hyperv_kernel_configure", Destructive = true)]
-    [Description("Configure guest kernel debugging. action=kdnet requires running guest+hostIp. KDCOM is TWO phases: serial_host while Off maps COM pipe; serial_guest while Running changes guest BCD. status reads BCD; disable turns debugging off. Checks native exit codes; never silently disables Secure Boot/BitLocker. reboot is opt-in.")]
+    [Description("Configure guest kernel debugging. action=kdnet requires running guest+hostIp. KDCOM is TWO phases: serial_host maps the COM pipe, preferably while Off (it also works while Running, but a Generation 2 guest sees a newly mapped port only after a full stop and start); serial_guest while Running changes guest BCD. status reads BCD; disable turns debugging off. Checks native exit codes; never silently disables Secure Boot/BitLocker. reboot is opt-in.")]
     public Task<CallToolResult> KernelConfigure(string machine, string action, string? hostIp = null, int port = 50000,
         string? key = null, string? pipeName = null, int comPort = 1, bool reboot = false, string credentialProfile = "default", CancellationToken ct = default) => Run(async () =>
     {
@@ -41,11 +41,11 @@ internal sealed partial class HyperVTools
         var serialAttach = $"com:pipe,port={pipePath},resets=0,reconnect";
         if (action == "serial_host")
         {
-            var result = await service.PowerShell.JsonAsync(Vm(vm.Id) + RequireOff + $"Set-VMComPort -VM $vm -Number {comPort} -Path {L(pipePath)}\nGet-VMComPort -VM $vm -Number {comPort} | Select-Object Name,Path | ConvertTo-Json -Compress", ct);
+            var result = await service.Lifecycle.SetComPortAsync(vm.Id, comPort, pipePath, ct);
             return new { success = true, phase = "host_serial_configured", result, kernelAttachString = serialAttach,
                 next = "Start the VM, wait for PowerShell Direct readiness, then call serial_guest with the same COM port. This step has not configured guest BCD." };
         }
-        if (vm.State != Extracted.HyperVMachineState.Running) throw new InvalidOperationException("Guest BCD configuration requires Running. Use serial_host only while Off.");
+        if (vm.State != Extracted.HyperVMachineState.Running) throw new InvalidOperationException("Guest BCD configuration (kdnet, serial_guest, status, disable) requires a Running VM.");
         string script;
         string? attach = null;
         switch (action)

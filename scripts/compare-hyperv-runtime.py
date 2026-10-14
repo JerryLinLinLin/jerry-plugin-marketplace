@@ -14,6 +14,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_ASSEMBLY = 'HyperVControl.dll'
@@ -52,13 +53,26 @@ def bundle(data):
     for _ in range(count):
         offset, size = struct.unpack_from('<qq', data, pos)
         pos += 16
+        compressed = 0
         if major >= 6:
-            pos += 8  # compressed size
+            compressed = struct.unpack_from('<q', data, pos)[0]  # nonzero when the entry is deflated
+            pos += 8
         kind = data[pos]
         pos += 1
         path, pos = read_string(data, pos)
-        entries.append((offset, size, kind, path))
+        entries.append((offset, size, compressed, kind, path))
     return (major, minor), bundle_id, header, entries
+
+
+def payload(data, entry):
+    """The bytes of one bundled file as the runtime sees them: inflated when the bundle compresses it."""
+    offset, size, compressed, _, path = entry
+    if not compressed:
+        return data[offset:offset + size]
+    inflated = zlib.decompress(data[offset:offset + compressed], -15)
+    if len(inflated) != size:
+        raise ValueError(f'{path}: inflated to {len(inflated)} bytes, manifest says {size}')
+    return inflated
 
 
 def build_identifier_regions(pe):
@@ -120,22 +134,36 @@ def masked(pe):
     return bytes(copy), regions
 
 
+def host(data, entries):
+    """The apphost that precedes the bundled files, with the bundle header offset it stores blanked:
+    that offset follows the compressed sizes, so it moves whenever an identifier inside a deflated file changes."""
+    prefix = bytearray(data[:min(entry[0] for entry in entries)])
+    signature = data.find(BUNDLE_SIGNATURE)
+    prefix[signature - 8:signature] = bytes(8)
+    return bytes(prefix)
+
+
 def compare(pinned, built):
     """Return a list of differences; an empty list means the executables carry the same code."""
     problems = []
-    if len(pinned) != len(built):
-        problems.append(f'size differs: pinned {len(pinned)} bytes, built {len(built)} bytes')
     version_a, _, header_a, entries_a = bundle(pinned)
     version_b, _, header_b, entries_b = bundle(built)
     if version_a != version_b:
         problems.append(f'bundle format differs: {version_a} vs {version_b}')
-    if [entry[1:] for entry in entries_a] != [entry[1:] for entry in entries_b]:
+    # A compressed entry's stored size follows its content, so only the inflated size, kind and path identify the list.
+    if [(size, kind, path) for _, size, _, kind, path in entries_a] != [(size, kind, path) for _, size, _, kind, path in entries_b]:
         problems.append('bundled file list differs')
         return problems
-    if pinned[:entries_a[0][0]] != built[:entries_b[0][0]]:
+    if any(entry[2] for entry in entries_a) != any(entry[2] for entry in entries_b):
+        problems.append('one bundle is compressed and the other is not')
+        return problems
+    if host(pinned, entries_a) != host(built, entries_b):
         problems.append('host executable differs')
-    for (offset_a, size, _, path), (offset_b, _, _, _) in zip(entries_a, entries_b):
-        data_a, data_b = pinned[offset_a:offset_a + size], built[offset_b:offset_b + size]
+    if len(pinned) != len(built) and not any(entry[2] for entry in entries_a):
+        problems.append(f'size differs: pinned {len(pinned)} bytes, built {len(built)} bytes')
+    for entry_a, entry_b in zip(entries_a, entries_b):
+        path = entry_a[4]
+        data_a, data_b = payload(pinned, entry_a), payload(built, entry_b)
         if data_a == data_b:
             continue
         if path != APP_ASSEMBLY:

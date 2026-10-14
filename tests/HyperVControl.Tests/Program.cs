@@ -24,7 +24,16 @@ if (args.Length == 0 || args[0] == "unit")
     Check(HyperVGuestUiService.ValidateUiCommand("inspect") == "inspect", "UI inspection routing");
     try { HyperVGuestUiService.ValidateUiCommand("send-keys"); throw new Exception("accepted unsupported UI input"); } catch (ArgumentException) { Console.WriteLine("PASS UI keyboard redirects to console"); }
     Check(HyperVGuestUiService.BuildWindowsArgumentLine(["one two", "a\"b", @"C:\tail space\"]).Contains("\\\""), "Windows argv quote escaping");
-    try { await HyperVControl.Tests.ReviewRegressionTests.RunAsync(Check); }
+    try
+    {
+        await HyperVControl.Tests.ReviewRegressionTests.RunAsync(Check);
+        await HyperVControl.Tests.LifecycleTests.RunAsync(Check);
+        await HyperVControl.Tests.LifecycleV2Tests.RunAsync(Check);
+        await HyperVControl.Tests.ImageTests.RunAsync(Check);
+        await HyperVControl.Tests.ImageBuildTests.RunAsync(Check);
+        await HyperVControl.Tests.BridgeTests.RunAsync(Check);
+        await HyperVControl.Tests.ElevationProxyTests.UnitAsync(Check);
+    }
     catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; return; }
     Console.WriteLine("UNIT PASS");
     return;
@@ -68,8 +77,21 @@ if (args[0] is "smoke" or "launcher")
 {
     var invalid = await Call("hyperv_power", new {machine="__missing_hypervcontrol_test_vm__",action="delete_everything"}, true);
     Check(invalid.GetProperty("ok").GetBoolean() == false, "Tool errors are structured MCP errors");
-    var paths = await Call("hyperv_vm_create", new {name="not-created",path="relative",vhdPath="relative"}, true);
+    var paths = await Call("hyperv_vm_create", new {name="not-created",source="new_disk",path="relative",vhdPath="relative"}, true);
     Check(paths.GetProperty("ok").GetBoolean() == false, "Invalid path rejected before host mutation");
+    var imagePath = await Call("hyperv_vm_create", new {name="not-created",path="relative"}, true, "hyperv_vm_create-default-image-path");
+    Check(imagePath.GetProperty("ok").GetBoolean() == false && imagePath.GetProperty("errorType").GetString() == "ArgumentException",
+        "The default source=image rejects an invalid path before resolving or downloading an image");
+    var otherSource = await Call("hyperv_vm_create", new {name="not-created",diskGb=10}, true, "hyperv_vm_create-default-image-unused");
+    Check(otherSource.GetProperty("ok").GetBoolean() == false && otherSource.GetProperty("error").GetString()!.Contains("source=new_disk"),
+        "The default source=image refuses another source's parameters instead of downloading an image");
+    if (args[0] == "smoke")
+    {
+        var answered = (await Call("hyperv_capabilities")).GetProperty("process");
+        Check(answered.GetProperty("mode").GetString() == "in-process" && answered.GetProperty("elevated").GetBoolean() == ElevationBridge.IsAdministrator,
+            "Without --elevate the server answers tool calls in-process");
+        await HyperVControl.Tests.ElevationProxyTests.SmokeAsync(executable, results, Check);
+    }
     Console.WriteLine("STDIO SMOKE PASS");
     return;
 }
@@ -220,5 +242,8 @@ else if(args[0] == "cleanup")
     Check(originalIds.SetEquals(finalIds),"All original checkpoint IDs preserved; only test checkpoint removed");
     Check(original.GetProperty("currentParentCheckpointId").GetString()==finalCheckpoints.GetProperty("currentParentCheckpointId").GetString(),"Original checkpoint branch restored");
 }
+else if (args[0] == "lifecycle-live") await HyperVControl.Tests.LifecycleLiveTests.RunAsync(Call, Check, results);
+else if (args[0] == "images-live") await HyperVControl.Tests.ImageLiveTests.RunAsync(Call, Check, results);
+else if (args[0] == "image-build-live") await HyperVControl.Tests.ImageBuildLiveTests.RunAsync(Call, Check, results);
 else throw new ArgumentException("Unknown validation phase.");
 Console.WriteLine(args[0].ToUpperInvariant()+" PASS");
