@@ -6,6 +6,6 @@
   "rid": "win-x64",
   "framework": "net10.0-windows",
   "selfContained": true,
-  "sha256": "488183688c80ef08b093673a8d98d653aa676a284dbb8b18537dd19d1e127788",
+  "sha256": "24ce6b1318271098197a473dc04e813a5c722060d22a127654fb7813784378ca",
   "url": "https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/download/hyper-v-control-v0.2.0/hyper-v-control-win-x64-v0.2.0.exe"
 }

@@ -58,7 +58,11 @@ internal sealed partial class VmLifecycleService
                         .Line("if (-not [System.IO.File]::Exists($__parent)) { Stop-Control 'NotFound' ('Parent disk not found: ' + $__parent) }")
                         .Line("$__attached = @((Get-ControlDiskReferences $null).Map[(Get-ControlPathKey $__parent)] | Where-Object { $null -ne $_ -and $_.Attached })")
                         .Line("if ($__attached.Count -gt 0) { Stop-Control 'InvalidArgument' ('Parent ' + $__parent + ' is ' + (Format-ControlReference $__attached[0]) + '; a differencing parent must never change. Nothing was changed.') }")
-                        .Line("Assert-ControlFreeSpace $__path ([long](Get-VHD -Path $__parent).Size) ('A differencing disk over ' + $__parent)");
+                        .Line("$__parentSize = [long](Get-VHD -Path $__parent).Size")
+                        // A differencing child starts near empty and grows as the guest writes, so only a small reservation is required up front.
+                        .Line("Assert-ControlFreeSpace $__path 1GB ('A differencing disk over ' + $__parent)")
+                        .Line("$__space = Get-ControlFreeSpace $__path")
+                        .Line("if ($null -ne $__space -and $__space.freeBytes -lt $__parentSize) { [void]$__warnings.Add('The differencing disk can grow to ' + [math]::Round($__parentSize / 1GB, 1) + ' GB as the guest writes; ' + $__space.root + ' has ' + [math]::Round($__space.freeBytes / 1GB, 1) + ' GB free.') }");
                 else s.Line($"Assert-ControlFreeSpace $__path ([long]{sizeGb}*1GB) 'A {sizeGb} GB disk'");
                 s.Line("[void][System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($__path))");
                 if (kind == "differencing")

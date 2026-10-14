@@ -307,7 +307,11 @@ internal sealed partial class VmLifecycleService(PowerShellRunner runner)
                     .Line("$__users = (Get-ControlDiskReferences $null).Map[(Get-ControlPathKey $__parent)]")
                     .Line("$__attached = @($__users | Where-Object { $null -ne $_ -and $_.Attached })")
                     .Line("if ($__attached.Count -gt 0) { Stop-Control 'InvalidArgument' ('Parent ' + $__parent + ' is ' + (Format-ControlReference $__attached[0]) + '; a linked parent must never change. Use a disk no VM attaches, for example a template from hyperv_vm_clone.') }")
-                    .Line("Assert-ControlFreeSpace $__disk ([long](Get-VHD -Path $__parent).Size) ('A differencing disk over ' + $__parent)");
+                    .Line("$__parentSize = [long](Get-VHD -Path $__parent).Size")
+                    // A differencing child starts near empty and grows as the guest writes, so only a small reservation is required up front.
+                    .Line("Assert-ControlFreeSpace $__disk 1GB ('A differencing disk over ' + $__parent)")
+                    .Line("$__space = Get-ControlFreeSpace $__disk")
+                    .Line("if ($null -ne $__space -and $__space.freeBytes -lt $__parentSize) { [void]$__warnings.Add('The differencing disk can grow to ' + [math]::Round($__parentSize / 1GB, 1) + ' GB as the guest writes; ' + $__space.root + ' has ' + [math]::Round($__space.freeBytes / 1GB, 1) + ' GB free.') }");
                 break;
         }
 
