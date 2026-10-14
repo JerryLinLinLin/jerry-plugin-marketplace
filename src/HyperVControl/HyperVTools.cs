@@ -44,19 +44,21 @@ internal sealed partial class HyperVTools(ControlService service)
     };
 
     [McpServerTool(Name = "hyperv_capabilities", ReadOnly = true)]
-    [Description("Probe local Hyper-V rights, host availability, console and guest prerequisites, and installed debugger versions. hostDefaults gives the default VM and VHD folders, supported VM configuration versions, Secure Boot templates, Default Switch presence and free space on those volumes. No VM mutations.")]
+    [Description("Probe local Hyper-V rights, host availability, console and guest prerequisites, and installed debugger versions. hostDefaults gives the default VM and VHD folders, supported VM configuration versions, Secure Boot templates, Default Switch presence and free space on those volumes. process identifies the process that answered: id, elevated, and mode (in-process; elevated-worker, the UAC worker that --elevate starts on the first tool call; worker-seam, the same worker started without UAC for tests). No VM mutations.")]
     public Task<CallToolResult> Capabilities(CancellationToken ct) => Run(async () =>
     {
         var host = service.HyperV.GetInventoryAsync(ct);
         var defaults = Probe(() => service.Lifecycle.HostDefaultsAsync(ct));
         return new
         {
-            elevated = ElevationBridge.IsAdministrator, host = await host, hostDefaults = await defaults,
+            elevated = ElevationBridge.IsAdministrator,
+            process = new { id = Environment.ProcessId, elevated = ElevationBridge.IsAdministrator, mode = ElevationBridge.Mode },
+            host = await host, hostDefaults = await defaults,
             debuggers = await service.Debugger.DiscoverAsync(ct),
             basic = "Hyper-V WMI framebuffer and synthetic input; console window uses RDP ActiveX on port 2179.",
             enhanced = "Supported guest, Enhanced Session enabled; RDP ActiveX. Capture requires foreground unobscured window.",
             guest = "PowerShell Direct requires a running Windows guest and guest credentials. UI Automation also needs an unlocked interactive sign-in.",
-            elevation = "Use --elevate to bridge stdio to a same-user UAC worker. Cancelling UAC exits cleanly. Alternate-admin credentials require starting the MCP client in that account."
+            elevation = "With --elevate and no administrator rights, the first tool call shows one UAC prompt and starts a same-user elevated worker that answers every call until the MCP session ends. A declined prompt returns ElevationDeclined without changes, and the next call prompts again. Alternate-admin credentials require starting the MCP client in that account."
         };
     });
 
