@@ -42,7 +42,7 @@ Library entries keep the warnings of the catalog image they came from.
 
 ## Library
 
-The library root is `<host default VHD path>\HyperVControl\Images`, or `HYPERV_CONTROL_IMAGE_ROOT` when it is set. It holds `library.json`, `catalogs.json`, the `cache\` download directory and the image files. The launcher's elevated worker does not inherit environment variables set only for the MCP client process; set the override as a user environment variable and restart the client.
+The library root is `<host default VHD path>\HyperVControl\Images`, or `HYPERV_CONTROL_IMAGE_ROOT` when it is set. It holds `library.json`, `catalogs.json`, the `cache\` download directory and the image files. The elevated worker receives `HYPERV_CONTROL_*` variables from the MCP client's process environment through the launcher bridge, so the override can be set in the client's MCP configuration or as a user environment variable; restart the client after changing it.
 
 Each entry records `name`, `kind` (`image` or `template`), `osFamily` (`windows`, `linux` or `other`), `path`, `format` (`vhdx` or `iso`), `source` (catalog, image, URI and verified SHA-256, or the registered path), sizes, `config` (`secureBoot`, `enhancedSessionTransportType`), `registeredAt`, `readOnly`, `notes`, `warnings` and `deployments` (the clones and copies made from it). `list` adds `exists` and the current file size.
 

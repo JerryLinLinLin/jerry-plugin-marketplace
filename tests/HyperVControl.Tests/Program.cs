@@ -31,6 +31,7 @@ if (args.Length == 0 || args[0] == "unit")
         await HyperVControl.Tests.LifecycleV2Tests.RunAsync(Check);
         await HyperVControl.Tests.ImageTests.RunAsync(Check);
         await HyperVControl.Tests.ImageBuildTests.RunAsync(Check);
+        await HyperVControl.Tests.BridgeTests.RunAsync(Check);
     }
     catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; return; }
     Console.WriteLine("UNIT PASS");

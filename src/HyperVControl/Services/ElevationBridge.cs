@@ -2,12 +2,23 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Text.Json;
 
 namespace HyperVControl.Services;
 
 internal static class ElevationBridge
 {
     internal static bool IsAdministrator => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+
+    /// <summary>
+    /// Process environment does not survive a UAC launch: the elevated worker starts with the
+    /// user's profile environment, not the MCP client's. These configuration variables are
+    /// therefore forwarded over the private pipe before any MCP traffic.
+    /// </summary>
+    internal static bool IsForwarded(string name) =>
+        name.StartsWith("HYPERV_CONTROL_", StringComparison.OrdinalIgnoreCase)
+        || name.StartsWith("HYPERV_GUEST_", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("_NT_SYMBOL_PATH", StringComparison.OrdinalIgnoreCase);
 
     internal static async Task RunAsync()
     {
@@ -22,6 +33,7 @@ internal static class ElevationBridge
         await pipe.WaitForConnectionAsync(timeout.Token);
         if (!GetNamedPipeClientProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var client) || client != worker.Id)
             throw new InvalidOperationException("Unexpected elevation bridge client.");
+        await WriteEnvironmentAsync(pipe, Environment.GetEnvironmentVariables(), timeout.Token);
         using var stop = new CancellationTokenSource();
         var input = Console.OpenStandardInput().CopyToAsync(pipe, stop.Token);
         var output = pipe.CopyToAsync(Console.OpenStandardOutput(), stop.Token);
@@ -52,7 +64,38 @@ internal static class ElevationBridge
         await pipe.ConnectAsync(30000);
         if (!GetNamedPipeServerProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var server) || server != parentId || !IsSameUserProcess(parentId))
         { pipe.Dispose(); throw new InvalidOperationException("Unexpected elevation bridge server."); }
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        foreach (var (variable, value) in await ReadEnvironmentAsync(pipe, timeout.Token))
+            Environment.SetEnvironmentVariable(variable, value);
         return pipe;
+    }
+
+    /// <summary>Writes the forwarded variables as a 4-byte little-endian length followed by UTF-8 JSON.</summary>
+    internal static async Task WriteEnvironmentAsync(Stream pipe, System.Collections.IDictionary environment, CancellationToken ct)
+    {
+        var variables = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (System.Collections.DictionaryEntry entry in environment)
+            if (entry.Key is string name && entry.Value is string value && IsForwarded(name)) variables[name] = value;
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new { environment = variables });
+        await pipe.WriteAsync(BitConverter.GetBytes(payload.Length), ct);
+        await pipe.WriteAsync(payload, ct);
+        await pipe.FlushAsync(ct);
+    }
+
+    /// <summary>Reads the header written by <see cref="WriteEnvironmentAsync"/>; only allowlisted names are returned.</summary>
+    internal static async Task<IReadOnlyList<(string Name, string Value)>> ReadEnvironmentAsync(Stream pipe, CancellationToken ct)
+    {
+        var header = new byte[4];
+        await pipe.ReadExactlyAsync(header, ct);
+        var length = BitConverter.ToInt32(header);
+        if (length is < 2 or > 1_048_576) throw new InvalidOperationException("Invalid elevation bridge header.");
+        var payload = new byte[length];
+        await pipe.ReadExactlyAsync(payload, ct);
+        using var document = JsonDocument.Parse(payload);
+        var variables = new List<(string, string)>();
+        foreach (var property in document.RootElement.GetProperty("environment").EnumerateObject())
+            if (IsForwarded(property.Name) && property.Value.ValueKind == JsonValueKind.String) variables.Add((property.Name, property.Value.GetString()!));
+        return variables;
     }
 
     private static bool IsSameUserProcess(int pid)
