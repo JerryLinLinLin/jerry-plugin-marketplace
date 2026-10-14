@@ -35,7 +35,7 @@ For an offline machine, use the plugin's `scripts/install.ps1` in your preparati
 
 ## Permissions and guest setup
 
-With `--elevate`, Windows requests administrator approval once when needed. Subsequent operations use the same elevated worker until the MCP session ends. The MCP client can stay unelevated. UAC cancellation exits without operating on VMs; alternate-user elevation is unsupported. See the [permission model](skills/hyper-v-control/references/runtime.md).
+With `--elevate`, starting the MCP server never prompts. Windows asks for administrator approval on the first tool call, once per MCP session: that call and every later one use the same elevated worker until the session ends. The MCP client can stay unelevated. Declining fails only that call, without operating on VMs, and the next call asks again; alternate-user elevation is unsupported. See the [permission model](skills/hyper-v-control/references/runtime.md).
 
 Run `hyperv_capabilities` to inspect the host and available integrations. Windows guest automation needs credentials for PowerShell Direct. UI Automation needs an unlocked interactive guest desktop; Enhanced Session needs guest support and host policy. Basic Session can interact with boot screens and guests without PowerShell Direct.
 
