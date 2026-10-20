@@ -25,10 +25,46 @@ internal static class LifecycleTests
             switches = new object[] { new { id = Guid.Parse("c08cb7b8-9b3c-408e-8e30-5e16a3aeb444"), name = "Default Switch", type = "Internal" } }
         });
         using var service = new ControlService();
+        var tools = new HyperVTools(service);
+        static JsonElement Body(CallToolResult result) => JsonDocument.Parse(result.Content.OfType<TextContentBlock>().Single().Text).RootElement.Clone();
 
         var inventory = await service.HyperV.GetInventoryAsync();
         check(inventory.Capability.IsAvailable && inventory.Machines.Count == 4 && inventory.Machines.Any(m => m.Id == runningVm && m.State == Extracted.HyperVMachineState.Running),
             "Typed inventory reaches the mock module through the shared bootstrap");
+
+        // Hyper-V's Get-VMSnapshot -ParentOf throws a NullReferenceException for a VM without a current checkpoint (the mock
+        // reproduces it), so hyperv_checkpoints reads the VM's ParentSnapshotId instead.
+        var parentOf = await Expect(() => service.PowerShell.InvokeAsync(new HyperVScript().Vm("Lab A")
+            .Line("$null = Hyper-V\\Get-VMSnapshot -ParentOf $vm -ErrorAction Stop").Returns("$true"), default));
+        check(parentOf?.Message == "Object reference not set to an instance of an object.",
+            "The mock reproduces Hyper-V: Get-VMSnapshot -ParentOf on a VM without checkpoints throws a NullReferenceException");
+        mock.ClearCalls();
+        var none = await tools.Checkpoints("Lab A", default);
+        var noneBody = Body(none);
+        check(none.IsError != true && noneBody.GetProperty("success").GetBoolean() && noneBody.GetProperty("checkpoints").GetArrayLength() == 0
+            && noneBody.GetProperty("currentParentCheckpointId").ValueKind == JsonValueKind.Null
+            && mock.Called("Get-VMSnapshot") && !mock.Calls().Any(c => c.Cmdlet == "Get-VMSnapshot" && c.Parameters.TryGetProperty("ParentOf", out _)),
+            "hyperv_checkpoints on a VM with no checkpoints succeeds with an empty list and no current checkpoint");
+
+        var baseline = Body(await tools.Checkpoint("Lab A", "create", checkpoint: "baseline"));
+        var baselineId = baseline.GetProperty("checkpoint").GetProperty("id").GetString();
+        var one = await tools.Checkpoints("Lab A", default);
+        var oneBody = Body(one);
+        var listed = oneBody.GetProperty("checkpoints");
+        check(baseline.GetProperty("success").GetBoolean() && one.IsError != true && oneBody.GetProperty("success").GetBoolean() && listed.GetArrayLength() == 1
+            && listed[0].GetProperty("id").GetString() == baselineId && listed[0].GetProperty("name").GetString() == "baseline"
+            && oneBody.GetProperty("currentParentCheckpointId").GetString() == baselineId,
+            "After one checkpoint is created, hyperv_checkpoints lists it and reports it as the current parent checkpoint");
+
+        mock.ClearCalls();
+        var restoredCurrent = await tools.Checkpoint("Lab A", "restore", checkpoint: "current");
+        var deleted = await tools.Checkpoint("Lab A", "remove", checkpoint: "baseline");
+        var cleared = Body(await tools.Checkpoints("Lab A", default));
+        check(restoredCurrent.IsError != true && deleted.IsError != true
+            && mock.Calls().Single(c => c.Cmdlet == "Restore-VMSnapshot").Parameters.GetProperty("VMSnapshot").GetString() == baselineId
+            && cleared.GetProperty("success").GetBoolean() && cleared.GetProperty("checkpoints").GetArrayLength() == 0
+            && cleared.GetProperty("currentParentCheckpointId").ValueKind == JsonValueKind.Null,
+            "checkpoint=current resolves to that checkpoint; once the last checkpoint is removed the VM lists none and has no current checkpoint");
 
         mock.ClearCalls();
         var configured = await service.Lifecycle.ConfigureAsync("Lab A", 4, null, null, null, null, default);
@@ -82,7 +118,6 @@ internal static class LifecycleTests
             && info.GetProperty("disks").GetArrayLength() == 1 && info.GetProperty("integration").GetArrayLength() == 6 && info.GetProperty("firmware").GetProperty("SecureBoot").GetString() == "On",
             "Info projection assembles firmware, network, disks and integration services in one process");
 
-        var tools = new HyperVTools(service);
         var failure = await tools.ConfigureVm("Lab B", processors: 2);
         using (var document = JsonDocument.Parse(failure.Content.OfType<TextContentBlock>().Single().Text))
             check(failure.IsError == true && document.RootElement.GetProperty("ok").ValueKind == JsonValueKind.False

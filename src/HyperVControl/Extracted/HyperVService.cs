@@ -441,13 +441,14 @@ public sealed class HyperVService
                       Microsoft.PowerShell.Utility\Sort-Object -Property CreationTime -Descending |
                       Microsoft.PowerShell.Core\ForEach-Object { Convert-Checkpoint $_ }
               )
-              $currentParent = @(
-                  Hyper-V\Get-VMSnapshot -ParentOf $vm -ErrorAction Stop
-              ) | Microsoft.PowerShell.Utility\Select-Object -First 1
-              $currentParentCheckpointId = if ($null -eq $currentParent) {
-                  $null
+              # The VM's current checkpoint is its ParentSnapshotId (null when it has none). Get-VMSnapshot
+              # -ParentOf is not used: for a VM without a current checkpoint it sorts a one-element array
+              # holding null and throws a NullReferenceException.
+              $currentParentCheckpointId = if ($null -ne $vm.ParentSnapshotId -and
+                  [Guid]$vm.ParentSnapshotId -ne [Guid]::Empty) {
+                  ([Guid]$vm.ParentSnapshotId).ToString('D')
               } else {
-                  ([Guid]$currentParent.Id).ToString('D')
+                  $null
               }
               Write-CheckpointResult `
                   'available' `

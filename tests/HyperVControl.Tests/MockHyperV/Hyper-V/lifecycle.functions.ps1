@@ -7,7 +7,8 @@
 #   autoStartDelay, autoStopAction, enhancedSessionTransport, nested, path, secureBoot, template, tpm, keyProtector,
 #   tpmInitialized, firstBoot, dvd ('' = empty drive), adapters [{ name, switchName, mac, dynamicMac, spoofing, vlan }],
 #   integration { name: enabled }, disks [path | { path, controllerType, controllerNumber, controllerLocation }],
-#   snapshots[].disks, mergeDelay (Get-VM calls a merge takes after the last checkpoint is removed).
+#   snapshots[].disks, parentSnapshotId (the current checkpoint; when absent, the last of snapshots),
+#   mergeDelay (Get-VM calls a merge takes after the last checkpoint is removed).
 
 $script:MockServices = [ordered]@{
     'Guest Service Interface' = '6C09BB55-D683-4DA0-8931-C9BF705F6480'
@@ -120,7 +121,7 @@ function ConvertTo-MockVm($Row) {
         AutomaticStopAction = [string](Get-MockValue $Row 'autoStopAction' 'Save')
         EnhancedSessionTransportType = [string](Get-MockValue $Row 'enhancedSessionTransport' 'VMBus')
         Notes = [string](Get-MockValue $Row 'notes' '')
-        ParentSnapshotId = $null
+        ParentSnapshotId = (Get-MockParentSnapshotId $Row)
         Path = [string](Get-MockValue $Row 'path' 'C:\MockVMs')
         CreationTime = [datetime]::new(2026, 1, 2, 3, 4, 5, [System.DateTimeKind]::Utc)
         OperationalStatus = $status
@@ -624,7 +625,13 @@ function Remove-VMSnapshot {
                     if ($snapshot.parentId -and $remove.ContainsKey([string]$snapshot.parentId) -and -not $remove.ContainsKey([string]$snapshot.id)) { $remove[[string]$snapshot.id] = $true; $grew = $true }
                 }
             }
+            # Like Hyper-V, a removed current checkpoint passes that role to its nearest surviving ancestor, or to none.
+            $parentOf = @{}
+            foreach ($snapshot in @($row.snapshots | Where-Object { $null -ne $_ })) { $parentOf[[string]$snapshot.id] = [string]$snapshot.parentId }
+            $current = [string](Get-MockParentSnapshotId $row)
+            while ($current -and $remove.ContainsKey($current)) { $current = [string]$parentOf[$current] }
             $row.snapshots = @($row.snapshots | Where-Object { $null -ne $_ -and -not $remove.ContainsKey([string]$_.id) })
+            Set-MockProperty $row 'parentSnapshotId' $(if ($current) { $current } else { $null })
             if (@($row.snapshots).Count -eq 0) { Set-MockProperty $row 'mergePolls' ([int](Get-MockValue $row 'mergeDelay' 2)) }
         }
         Write-MockState $state
