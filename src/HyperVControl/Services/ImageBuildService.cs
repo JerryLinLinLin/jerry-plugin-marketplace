@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -15,8 +17,9 @@ namespace HyperVControl.Services;
 /// Linux: an Ubuntu cloud image is downloaded and checked against its SHA256SUMS, converted to a dynamic VHDX with
 /// qemu-img, grown, and paired with a NoCloud (CIDATA) seed ISO. Each build writes &lt;name&gt;.image.json next to the
 /// VHDX for the image library. Disk, DISM, bcdboot and IMAPI2 steps are PowerShell (<see cref="ImageBuildScripts"/>);
-/// downloads, hashing and file writes are C#. Whatever a build attaches is detached in every outcome, and a failed or
-/// cancelled build deletes its outputs (downloads stay cached for the next attempt).
+/// downloads, hashing, file writes and marking the BCD store as a system store (offreg.dll) are C#. Whatever a build
+/// attaches is detached in every outcome, and a failed or cancelled build deletes its outputs (downloads stay cached for
+/// the next attempt).
 /// </summary>
 internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunner jobs)
 {
@@ -302,6 +305,9 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
                 Phase(8, $"writing kernel-debug settings ({kd.Transport}) into the offline BCD store");
                 debugApplied = (await Runner.InvokeAsync(ImageBuildScripts.BcdDebug(system, kd), ct, 300)).GetProperty("debugOn").GetBoolean();
                 if (debugApplied != true) warnings.Add("bcdedit accepted the debug settings, but reading {default} back did not show 'debug Yes'; check with hyperv_kernel_configure action=status after first boot.");
+                // bcdedit /store clears TreatAsSystem when it closes the store, whichever step created it.
+                var store = Path.Combine(DriveRoot(system), "EFI", "Microsoft", "Boot", "BCD");
+                if (File.Exists(store)) MarkSystemStore(store);
             }
             if (w.ToolsDirectory is { } toolsDirectory)
             {
@@ -521,7 +527,8 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
     /// <summary>
     /// bcdboot first. This host family's bcdboot can copy the boot files yet fail to create a store on another disk's
     /// EFI partition (BFSVC status c0000035: the new store is loaded at the key the host's own store occupies); only in
-    /// that case, and only when the boot files were copied, the store is completed with bcdedit from the image's template.
+    /// that case, and only when the boot files were copied, the store is completed with bcdedit from the image's template
+    /// and then marked as a system store (<see cref="MarkSystemStore"/>), which the template is not.
     /// </summary>
     private async Task<(string Method, string Summary)> MakeBootableAsync(char windows, char system, List<string> warnings, CancellationToken ct)
     {
@@ -538,11 +545,13 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
         if (!IsStoreCollision(output) || !filesCopied || !File.Exists(template))
             throw new HyperVOperationException($"bcdboot failed (exit {exitCode}): {summary}", "HyperVOperationFailed");
         foreach (var stale in Directory.GetFiles(bootDirectory, "BCD*")) File.Delete(stale);
-        File.Copy(template, Path.Combine(bootDirectory, "BCD"));
+        var store = Path.Combine(bootDirectory, "BCD");
+        File.Copy(template, store);
         await Runner.InvokeAsync(ImageBuildScripts.BcdStore(windows, system, DefaultLanguage, Guid.NewGuid(), Guid.NewGuid()), ct, 600);
+        MarkSystemStore(store);
         warnings.Add("bcdboot copied the boot files but could not create the BCD store on the image's EFI partition on this host (BFSVC c0000035: it loads the new store at "
             + "the registry key the host's own store occupies). The store was completed with bcdedit from the image's BCD-Template instead: the boot manager plus one "
-            + "Windows Boot Loader with the elements bcdboot sets. A VM's first boot is the confirmation.");
+            + "Windows Boot Loader with the elements bcdboot sets, marked as a system store (System and TreatAsSystem) as bcdboot marks its own. A VM's first boot is the confirmation.");
         return (method + " (files) + bcdedit (store)", summary);
     }
 
@@ -557,6 +566,206 @@ internal sealed partial class ImageBuildService(PowerShellRunner runner, JobRunn
             || line.Contains("Failure", StringComparison.OrdinalIgnoreCase)).Take(12).ToList();
         if (lines.Length > 0 && !important.Contains(lines[^1])) important.Add(lines[^1]);
         return important.Count == 0 ? "(no output)" : string.Join(" | ", important);
+    }
+
+    private const string SystemStoreKeyName = "BCD00000000";
+    private const int HiveBaseBlockBytes = 4096;
+
+    /// <summary>
+    /// Marks an offline BCD store as a system store, as bcdboot marks the stores it creates: <c>Description\KeyName</c> =
+    /// BCD00000000 (REG_SZ) and <c>Description\System</c> = <c>Description\TreatAsSystem</c> = 1 (REG_DWORD). The image's
+    /// BCD-Template sets neither flag, and <c>bcdedit /store</c> clears TreatAsSystem whenever it closes a store; unmarked,
+    /// the VM's boot manager stops with 0xc000000e and bcdboot rejects the store (0xc0000098, not a system store). The hive
+    /// is edited in memory with the inbox offline registry library (offreg.dll: no registry load, no privilege), saved whole
+    /// to &lt;store&gt;.tmp and moved over the store. The store's transaction logs (&lt;store&gt;.LOG*) are then deleted:
+    /// they describe the file bcdedit left, and a log must never be replayed onto the new one.
+    /// </summary>
+    internal static void MarkSystemStore(string storePath)
+    {
+        RequireHive(storePath);
+        var temporary = storePath + ".tmp";
+        try
+        {
+            // ORSaveHive never overwrites, so a temporary file left by an interrupted run goes first.
+            ImageFiles.TryDelete(temporary);
+            var hive = OfflineRegistry.OpenHive(storePath);
+            try
+            {
+                var description = OfflineRegistry.CreateKey(hive, "Description", storePath);
+                try
+                {
+                    OfflineRegistry.SetString(description, "KeyName", SystemStoreKeyName, storePath);
+                    OfflineRegistry.SetDword(description, "System", 1, storePath);
+                    OfflineRegistry.SetDword(description, "TreatAsSystem", 1, storePath);
+                }
+                finally { OfflineRegistry.CloseKey(description); }
+                OfflineRegistry.SaveHive(hive, temporary);
+            }
+            finally { OfflineRegistry.CloseHive(hive); }
+            // A move over a file drops its hidden and system attributes and fails on a read-only one: clear, move, restore.
+            var attributes = File.GetAttributes(storePath);
+            File.SetAttributes(storePath, FileAttributes.Normal);
+            File.Move(temporary, storePath, overwrite: true);
+            File.SetAttributes(storePath, attributes);
+        }
+        finally { ImageFiles.TryDelete(temporary); }
+        var logs = Path.GetFileName(storePath) + ".LOG";
+        foreach (var log in Directory.GetFiles(Path.GetDirectoryName(storePath)!, logs + "*"))
+        {
+            if (!Path.GetFileName(log).StartsWith(logs, StringComparison.OrdinalIgnoreCase)) continue;
+            File.SetAttributes(log, FileAttributes.Normal);
+            File.Delete(log);
+        }
+    }
+
+    /// <summary>
+    /// The system-store values of an offline BCD store (<c>Description\KeyName</c>, <c>System</c>, <c>TreatAsSystem</c>),
+    /// read with offreg.dll without loading or changing the file; an absent value reads as "" or -1. Used by the tests.
+    /// </summary>
+    internal static (string KeyName, int System, int TreatAsSystem) ReadSystemStoreFlags(string storePath)
+    {
+        RequireHive(storePath);
+        var hive = OfflineRegistry.OpenHive(storePath);
+        try
+        {
+            if (OfflineRegistry.OpenKey(hive, "Description", storePath) is not { } description) return ("", -1, -1);
+            try
+            {
+                return (OfflineRegistry.GetString(description, "KeyName", storePath) ?? "",
+                    OfflineRegistry.GetDword(description, "System", storePath) ?? -1,
+                    OfflineRegistry.GetDword(description, "TreatAsSystem", storePath) ?? -1);
+            }
+            finally { OfflineRegistry.CloseKey(description); }
+        }
+        finally { OfflineRegistry.CloseHive(hive); }
+    }
+
+    /// <summary>Writes a new registry hive with no keys or values; the tests use it as a BCD-Template or store stand-in.</summary>
+    internal static void CreateEmptyHive(string path)
+    {
+        var hive = OfflineRegistry.CreateHive();
+        try { OfflineRegistry.SaveHive(hive, path); }
+        finally { OfflineRegistry.CloseHive(hive); }
+    }
+
+    /// <summary>Fails unless the file begins with a registry hive's base block: the "regf" signature and at least 4 KB.</summary>
+    private static void RequireHive(string path)
+    {
+        if (!File.Exists(path)) throw new HyperVOperationException($"The BCD store {path} does not exist.", "NotFound");
+        Span<byte> signature = stackalloc byte[4];
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            if (stream.Length >= HiveBaseBlockBytes && stream.ReadAtLeast(signature, signature.Length, throwOnEndOfStream: false) == signature.Length
+                && signature.SequenceEqual("regf"u8))
+                return;
+        throw new HyperVOperationException($"{path} is not a registry hive (it has no 'regf' base block), so it is not a BCD store.", "HyperVOperationFailed");
+    }
+
+    /// <summary>
+    /// The offline registry library that ships with Windows (System32\offreg.dll, loaded from there only). It reads and
+    /// writes a hive file in memory with plain file access, never through the host's registry, so no store is ever loaded
+    /// at a key the host's own store holds. Each function returns a Win32 error code; any but 0 becomes a
+    /// <see cref="HyperVOperationException"/>.
+    /// </summary>
+    private static class OfflineRegistry
+    {
+        private const int RegSz = 1, RegDword = 4, ErrorFileNotFound = 2;
+
+        public static nint CreateHive()
+        {
+            Check(ORCreateHive(out var hive), "ORCreateHive", "a new hive");
+            return hive;
+        }
+
+        public static nint OpenHive(string path)
+        {
+            Check(OROpenHive(path, out var hive), "OROpenHive", path);
+            return hive;
+        }
+
+        /// <summary>Saves in the hive format of Windows 7 and later (6.1, regf 1.5); the target file must not exist.</summary>
+        public static void SaveHive(nint hive, string path) => Check(ORSaveHive(hive, path, 6, 1), "ORSaveHive", path);
+
+        public static void CloseHive(nint hive) => ORCloseHive(hive);
+
+        /// <summary>The subkey's handle, or null when it does not exist.</summary>
+        public static nint? OpenKey(nint parent, string name, string path)
+        {
+            var status = OROpenKey(parent, name, out var key);
+            if (status == ErrorFileNotFound) return null;
+            Check(status, "OROpenKey " + name, path);
+            return key;
+        }
+
+        /// <summary>Opens the subkey, creating it when it does not exist.</summary>
+        public static nint CreateKey(nint parent, string name, string path)
+        {
+            Check(ORCreateKey(parent, name, null, 0, 0, out var key, out _), "ORCreateKey " + name, path);
+            return key;
+        }
+
+        public static void CloseKey(nint key) => ORCloseKey(key);
+
+        public static void SetString(nint key, string name, string value, string path)
+        {
+            var data = Encoding.Unicode.GetBytes(value + "\0");
+            Check(ORSetValue(key, name, RegSz, data, data.Length), "ORSetValue " + name, path);
+        }
+
+        public static void SetDword(nint key, string name, int value, string path) =>
+            Check(ORSetValue(key, name, RegDword, BitConverter.GetBytes(value), sizeof(int)), "ORSetValue " + name, path);
+
+        public static string? GetString(nint key, string name, string path) =>
+            Get(key, name, RegSz, path) is { } data ? Encoding.Unicode.GetString(data).TrimEnd('\0') : null;
+
+        public static int? GetDword(nint key, string name, string path) =>
+            Get(key, name, RegDword, path) is { } data ? BitConverter.ToInt32(data) : null;
+
+        /// <summary>A value's data, or null when the value does not exist; a value of another registry type fails.</summary>
+        private static byte[]? Get(nint key, string name, int type, string path)
+        {
+            var size = 0;
+            var status = ORGetValue(key, null, name, out _, null, ref size);
+            if (status == ErrorFileNotFound) return null;
+            Check(status, "ORGetValue " + name, path);
+            var data = new byte[size];
+            Check(ORGetValue(key, null, name, out var actual, data, ref size), "ORGetValue " + name, path);
+            if (actual != type || (type == RegDword && size != sizeof(int)))
+                throw new HyperVOperationException($"The registry value {name} in {path} has type {actual} ({size} bytes), not {(type == RegDword ? "REG_DWORD" : "REG_SZ")}.", "InvalidResponse");
+            return data[..size];
+        }
+
+        private static void Check(int status, string operation, string path)
+        {
+            if (status != 0)
+                throw new HyperVOperationException($"{operation} failed for {path}: {new Win32Exception(status).Message} (Win32 error {status}).", "HyperVOperationFailed");
+        }
+
+        [DllImport("offreg.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORCreateHive(out nint hive);
+
+        [DllImport("offreg.dll", CharSet = CharSet.Unicode, ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int OROpenHive(string path, out nint hive);
+
+        [DllImport("offreg.dll", CharSet = CharSet.Unicode, ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORSaveHive(nint hive, string path, int osMajorVersion, int osMinorVersion);
+
+        [DllImport("offreg.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORCloseHive(nint hive);
+
+        [DllImport("offreg.dll", CharSet = CharSet.Unicode, ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int OROpenKey(nint parent, string subKey, out nint key);
+
+        [DllImport("offreg.dll", CharSet = CharSet.Unicode, ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORCreateKey(nint parent, string subKey, string? className, int options, nint securityDescriptor, out nint key, out int disposition);
+
+        [DllImport("offreg.dll", ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORCloseKey(nint key);
+
+        [DllImport("offreg.dll", CharSet = CharSet.Unicode, ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORSetValue(nint key, string name, int type, byte[] data, int size);
+
+        [DllImport("offreg.dll", CharSet = CharSet.Unicode, ExactSpelling = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern int ORGetValue(nint key, string? subKey, string name, out int type, byte[]? data, ref int size);
     }
 
     private static void GuardLetters(char system, char windows)

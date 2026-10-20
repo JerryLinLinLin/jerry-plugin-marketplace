@@ -37,6 +37,7 @@ internal static class ImageBuildTests
             CloudInitAndCrypt(check);
             Unattend(check);
             ScriptRendering(check);
+            SystemStore(check, Temp);
             await Downloads(check, Temp);
             await Validation(check, Temp);
             await WindowsPipeline(check, Temp);
@@ -155,6 +156,36 @@ internal static class ImageBuildTests
         check(iso.Contains("IMAPI2FS.MsftFileSystemImage", StringComparison.Ordinal) && iso.Contains("$fsi.FileSystemsToCreate = 3", StringComparison.Ordinal)
             && iso.Contains("$fsi.VolumeName = 'CIDATA'", StringComparison.Ordinal) && iso.Contains("System.IO.FileMode.CreateNew", StringComparison.Ordinal),
             "Seed ISO script: IMAPI2 ISO 9660 + Joliet, label CIDATA, never overwrites");
+    }
+
+    /// <summary>System-store marking on real hive files, written and read with the inbox offline registry library (offreg.dll).</summary>
+    private static void SystemStore(Action<bool, string> check, Func<string, string> temp)
+    {
+        var boot = Directory.CreateDirectory(Path.Combine(temp("bcd"), "EFI", "Microsoft", "Boot")).FullName;
+        var store = Path.Combine(boot, "BCD");
+        ImageBuildService.CreateEmptyHive(store);
+        var header = File.ReadAllBytes(store);
+        check(header.Length >= 4096 && header.AsSpan(0, 4).SequenceEqual("regf"u8) && ImageBuildService.ReadSystemStoreFlags(store) == ("", -1, -1),
+            "An empty hive (a stand-in for BCD-Template) has a regf base block and no Description KeyName, System or TreatAsSystem value");
+
+        foreach (var name in new[] { "BCD.LOG", "BCD.LOG1", "BCD.LOG2", "BCD.tmp" }) File.WriteAllBytes(Path.Combine(boot, name), new byte[512]);
+        File.WriteAllBytes(Path.Combine(boot, "bootmgfw.efi"), [1]);
+        File.SetAttributes(Path.Combine(boot, "BCD.LOG1"), FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReadOnly);
+        File.SetAttributes(store, FileAttributes.Hidden | FileAttributes.System);
+        ImageBuildService.MarkSystemStore(store);
+        var marked = ImageBuildService.ReadSystemStoreFlags(store);
+        var survivors = Directory.GetFiles(boot).Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).ToList();
+        var attributes = File.GetAttributes(store);
+        ImageBuildService.MarkSystemStore(store);
+        check(marked == ("BCD00000000", 1, 1) && ImageBuildService.ReadSystemStoreFlags(store) == marked && File.ReadAllBytes(store).AsSpan(0, 4).SequenceEqual("regf"u8)
+            && survivors.SequenceEqual(["BCD", "bootmgfw.efi"]) && attributes == (FileAttributes.Hidden | FileAttributes.System),
+            "MarkSystemStore sets Description KeyName=BCD00000000, System=1 and TreatAsSystem=1, keeps the store's attributes, deletes its BCD.LOG* logs and a stale BCD.tmp, and is idempotent");
+
+        var notHive = Path.Combine(boot, "BCD-Template");
+        File.WriteAllText(notHive, "TEMPLATE");
+        var refused = Assert(() => ImageBuildService.MarkSystemStore(notHive));
+        check(refused?.Message.Contains("not a registry hive", StringComparison.Ordinal) == true && File.ReadAllText(notHive) == "TEMPLATE",
+            "MarkSystemStore refuses a file without a regf base block and leaves it unchanged");
     }
 
     private static async Task Downloads(Action<bool, string> check, Func<string, string> temp)
@@ -364,6 +395,10 @@ internal static class ImageBuildTests
         {
             var build = service.ImageBuild;
             build.DriveRoot = letter => letter switch { 'M' => isoContent, 'S' => esp, 'W' => windows, _ => throw new InvalidOperationException("Unexpected drive " + letter) };
+            // The store bcdboot wrote, as the kernel-debug bcdedit session leaves it: TreatAsSystem unset, a log beside it.
+            var espStore = Path.Combine(Directory.CreateDirectory(Path.Combine(esp, "EFI", "Microsoft", "Boot")).FullName, "BCD");
+            ImageBuildService.CreateEmptyHive(espStore);
+            File.WriteAllBytes(espStore + ".LOG1", new byte[512]);
             var plan = await build.PrepareAsync(new ImageBuildRequest
             {
                 OsFamily = "windows", Name = "lab-win", OutputDirectory = output, IsoPath = iso, DiskGb = 64, ComputerName = "HVC-LAB", AdminPassword = Password,
@@ -439,6 +474,8 @@ internal static class ImageBuildTests
                 && progress.Messages.Any(m => m.StartsWith("windows 5/10: applying image 2", StringComparison.Ordinal))
                 && mockState.GetProperty("attachedVhds").GetArrayLength() == 0 && mockState.GetProperty("mountedImages").GetArrayLength() == 0,
                 "Result reports partitions, boot method, applied debug settings, evaluation warning, nextSteps and phase progress; nothing stays mounted");
+            check(ImageBuildService.ReadSystemStoreFlags(espStore) == ("BCD00000000", 1, 1) && !File.Exists(espStore + ".LOG1"),
+                "After the offline kernel-debug bcdedit session the store is marked as a system store again (System=1, TreatAsSystem=1) and its stale log is deleted");
         }
 
         // 2. install.wim source with an edition match; bcdboot copies files but cannot create the store (c0000035): bcdedit fallback.
@@ -450,7 +487,9 @@ internal static class ImageBuildTests
         File.WriteAllBytes(Path.Combine(esp2, "EFI", "Microsoft", "Boot", "BCD"), new byte[8192]);
         File.WriteAllBytes(Path.Combine(esp2, "EFI", "Microsoft", "Boot", "BCD.LOG"), new byte[8192]);
         var windows2 = Directory.CreateDirectory(Path.Combine(root, "win2", "Windows", "System32", "config")).Parent!.Parent!.Parent!.FullName;
-        File.WriteAllText(Path.Combine(windows2, "Windows", "System32", "config", "BCD-Template"), "TEMPLATE");
+        // A real (empty) hive: like BCD-Template, it has no Description System or TreatAsSystem value.
+        var template = Path.Combine(windows2, "Windows", "System32", "config", "BCD-Template");
+        ImageBuildService.CreateEmptyHive(template);
         var wim = Path.Combine(root, "install.wim");
         File.WriteAllBytes(wim, [4, 5, 6]);
         using (var mock = new MockHyperV(ImageState(native: new Dictionary<string, object>
@@ -473,12 +512,14 @@ internal static class ImageBuildTests
             var unattend = XDocument.Load(Path.Combine(windows2, "Windows", "Panther", "unattend.xml"));
             check(!calls.Any(c => c.Cmdlet is "Mount-DiskImage" or "Dismount-DiskImage")
                 && calls.Any(c => c.Cmdlet == "Expand-WindowsImage" && c.Parameters.GetProperty("ImagePath").GetString() == wim && c.Parameters.GetProperty("Index").GetInt32() == 1)
-                && File.ReadAllText(Path.Combine(bootDirectory, "BCD")) == "TEMPLATE" && !File.Exists(Path.Combine(bootDirectory, "BCD.LOG"))
+                && ImageBuildService.ReadSystemStoreFlags(Path.Combine(bootDirectory, "BCD")) == ("BCD00000000", 1, 1) && ImageBuildService.ReadSystemStoreFlags(template) == ("", -1, -1)
+                && Directory.GetFiles(bootDirectory, "BCD*").Select(f => Path.GetFileName(f)).SequenceEqual(["BCD"])
                 && stores.Count == 31 && stores.All(a => a.Take(2).SequenceEqual(["/store", Store]))
                 && stores.Any(a => a.Length == 8 && a[2] == "/create" && a[4..].SequenceEqual(["/d", "Windows", "/application", "osloader"]))
                 && result.BootConfiguration == "bcdboot /offline (files) + bcdedit (store)" && result.Warnings.Any(w => w.Contains("c0000035", StringComparison.Ordinal))
                 && !unattend.Descendants(u + "AutoLogon").Any() && !unattend.Descendants(u + "fDenyTSConnections").Any(),
-                "install.wim source with edition match; when bcdboot copies the boot files but cannot create the store (c0000035) the store is built from the image's BCD-Template with bcdedit");
+                "install.wim source with edition match; when bcdboot copies the boot files but cannot create the store (c0000035) the store is built from the image's BCD-Template "
+                + "with bcdedit, then marked as a system store (KeyName BCD00000000, System=1, TreatAsSystem=1) with no log left beside it; the template itself is unchanged");
         }
 
         // 3. bcdboot fails outright: the job fails with bcdboot's reason, dismounts and deletes the VHDX.

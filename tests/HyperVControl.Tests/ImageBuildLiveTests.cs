@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using HyperVControl.Services;
 
 namespace HyperVControl.Tests;
 
@@ -11,9 +12,10 @@ namespace HyperVControl.Tests;
 /// Live validation of golden image builds through the published EXE, without downloading Windows media or creating VMs.
 /// A synthetic WIM (placeholder hives, the host's boot files, BCD template and bootstr.dll, and a marker) wrapped in an
 /// IMAPI2 ISO drives the full Windows pipeline into a small VHDX under D:\HyperVControl-validation\imagebuild; the result
-/// is mounted read-only and its partitions, files, unattend, tools and offline BCD store are checked. A second WIM with
-/// no boot files must fail at bcdboot with its reason and leave nothing behind. For Linux, the qemu-img precondition is
-/// checked without any download, and a build from a small .vhdx exercises copy, Resize-VHD and a real CIDATA seed ISO.
+/// is mounted read-only and its partitions, files, unattend, tools and offline BCD store (entries and system-store flags)
+/// are checked. A second WIM with no boot files must fail at bcdboot with its reason and leave nothing behind. For Linux,
+/// the qemu-img precondition is checked without any download, and a build from a small .vhdx exercises copy, Resize-VHD
+/// and a real CIDATA seed ISO.
 /// Preparation, verification and cleanup that need administrator rights run in elevated helper scripts; everything the
 /// test creates lives under one run directory that is detached and deleted in every outcome.
 /// </summary>
@@ -86,11 +88,15 @@ internal static class ImageBuildLiveTests
             var bcdDefault = verify.GetProperty("enumDefault").GetString()!;
             var bcdDebug = verify.GetProperty("enumDbgsettings").GetString()!;
             var bcdManager = verify.GetProperty("enumBootmgr").GetString()!;
+            // Read from a copy no bcdedit has opened, in this (unelevated) process: offreg.dll needs only read access.
+            var storeFlags = ImageBuildService.ReadSystemStoreFlags(verify.GetProperty("bcdFlagsCopy").GetString()!);
+            var bcdLogs = verify.GetProperty("bcdLogs").EnumerateArray().Select(l => l.GetString()).ToList();
             evidence["windowsVerification"] = new
             {
                 partitionStyle = verify.GetProperty("partitionStyle").GetString(), partitions = verify.GetProperty("partitions"),
                 espFiles = verify.GetProperty("espFiles"), marker = verify.GetProperty("marker").GetString() == "marker " + marker,
                 enumBootmgr = bcdManager, enumDefault = bcdDefault, enumDbgsettings = bcdDebug.Replace(kdKey, "<redacted>", StringComparison.Ordinal),
+                systemStore = new { storeFlags.KeyName, storeFlags.System, storeFlags.TreatAsSystem }, bcdLogs,
                 tools = verify.GetProperty("tools"), bootx64Signer = verify.GetProperty("bootx64Signer").GetString()
             };
             check(verify.GetProperty("partitionStyle").GetString() == "GPT" && partitions.Count == 3
@@ -115,6 +121,8 @@ internal static class ImageBuildLiveTests
                 && Regex.IsMatch(bcdDefault, @"(?m)^debug\s+Yes") && Regex.IsMatch(bcdDebug, @"(?m)^debugtype\s+NET") && Regex.IsMatch(bcdDebug, @"(?m)^hostip\s+192\.0\.2\.10")
                 && Regex.IsMatch(bcdDebug, @"(?m)^port\s+50005") && bcdDebug.Contains(kdKey, StringComparison.Ordinal),
                 $"EFI partition has bootx64.efi, bootmgfw.efi and a BCD store whose boot manager starts winload.efi with debug on and KDNET settings ({boot})");
+            check(storeFlags == ("BCD00000000", 1, 1) && bcdLogs.Count == 0,
+                $"The BCD store is a system store after the offline kernel-debug edit: Description KeyName=BCD00000000, System=1, TreatAsSystem=1, and no BCD.LOG* file beside it ({boot})");
             if (boot != "bcdboot /offline" && boot != "bcdboot")
                 check(warnings.Any(w => w.Contains("c0000035", StringComparison.Ordinal)), "bcdboot could not create the store on this host (c0000035); the reported fallback built it with bcdedit");
 
@@ -306,6 +314,10 @@ internal static class ImageBuildLiveTests
                 @{ path = [string]$_.FullName.Substring($toolsRoot.Length); sha256 = $hash; bytes = [long]$_.Length }
             })
             [IO.File]::Copy($espPath + 'EFI\Microsoft\Boot\BCD', $bcdCopy, $true)
+            # A second copy that bcdedit never opens (bcdedit /store clears TreatAsSystem when it closes a store), for the system-store flags.
+            $bcdFlagsCopy = Join-Path {{Q(run)}} 'bcd-flags-copy'
+            [IO.File]::Copy($espPath + 'EFI\Microsoft\Boot\BCD', $bcdFlagsCopy, $true)
+            $bcdLogs = @([IO.Directory]::GetFiles($espPath + 'EFI\Microsoft\Boot', 'BCD.LOG*') | ForEach-Object { [IO.Path]::GetFileName($_) })
             $bootx64 = Join-Path {{Q(run)}} 'bootx64-copy.efi'
             [IO.File]::Copy($espPath + 'EFI\Boot\bootx64.efi', $bootx64, $true)
             $bcdedit = Join-Path $env:SystemRoot 'System32\bcdedit.exe'
@@ -314,6 +326,8 @@ internal static class ImageBuildLiveTests
                 partitionStyle = [string](Get-Disk -Number $number).PartitionStyle
                 partitions = $rows
                 espFiles = @{ bootx64 = [IO.File]::Exists($espPath + 'EFI\Boot\bootx64.efi'); bootmgfw = [IO.File]::Exists($espPath + 'EFI\Microsoft\Boot\bootmgfw.efi'); bcd = [IO.File]::Exists($espPath + 'EFI\Microsoft\Boot\BCD') }
+                bcdFlagsCopy = $bcdFlagsCopy
+                bcdLogs = $bcdLogs
                 marker = [IO.File]::ReadAllText($winPath + 'Windows\HyperVControl-synthetic.txt')
                 configFiles = @(Get-ChildItem -LiteralPath ($winPath + 'Windows\System32\config') -File).Count
                 unattendHasBom = ($unattendBytes.Length -ge 3 -and $unattendBytes[0] -eq 0xEF -and $unattendBytes[1] -eq 0xBB -and $unattendBytes[2] -eq 0xBF)

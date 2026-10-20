@@ -38,6 +38,19 @@ function Write-MockCall([string]$Cmdlet, [System.Collections.IDictionary]$Parame
     if ($script:LogPath) { Add-Content -LiteralPath $script:LogPath -Value ($entry | ConvertTo-Json -Compress -Depth 6) -Encoding UTF8 }
 }
 
+# The VM's current checkpoint (Hyper-V's VirtualMachine.ParentSnapshotId): the row's parentSnapshotId when the row has one
+# (null included), otherwise its last snapshot, as after a series of Checkpoint-VM calls; null for a VM without snapshots.
+function Get-MockParentSnapshotId($Row) {
+    if ($null -eq $Row) { return $null }
+    if ($null -ne $Row.PSObject.Properties['parentSnapshotId']) {
+        if ($Row.parentSnapshotId) { return [guid]$Row.parentSnapshotId }
+        return $null
+    }
+    $snapshots = @($Row.snapshots | Where-Object { $null -ne $_ })
+    if ($snapshots.Count -gt 0) { return [guid]$snapshots[-1].id }
+    return $null
+}
+
 function ConvertTo-MockVm($Row) {
     [pscustomobject]@{
         Id = [guid]$Row.id
@@ -52,7 +65,7 @@ function ConvertTo-MockVm($Row) {
         MemoryMaximum = [long]1099511627776
         DynamicMemoryEnabled = [bool]$Row.dynamicMemory
         CheckpointType = 'Production'
-        ParentSnapshotId = $null
+        ParentSnapshotId = (Get-MockParentSnapshotId $Row)
         Path = 'C:\MockVMs'
         Uptime = [timespan]::Zero
         GuestOperatingSystem = $null
@@ -258,7 +271,15 @@ function Get-VMSnapshot {
     param([Parameter(ValueFromPipeline)]$VM, [string[]]$VMName, [string[]]$Name, [guid[]]$Id, $ParentOf, [string]$SnapshotType)
     process {
         Write-MockCall 'Get-VMSnapshot' $PSBoundParameters
-        if ($ParentOf) { return }
+        if ($PSBoundParameters.ContainsKey('ParentOf')) {
+            # VMs only. Like Hyper-V, which puts GetParentSnapshot()'s result in a one-element array and sorts it, a VM
+            # without a current checkpoint fails with a NullReferenceException instead of returning nothing.
+            $row = Get-MockRow $ParentOf
+            $parentId = Get-MockParentSnapshotId $row
+            if ($null -eq $parentId) { throw [System.NullReferenceException]::new('Object reference not set to an instance of an object.') }
+            foreach ($snapshot in @($row.snapshots)) { if ($null -ne $snapshot -and [string]$snapshot.id -eq [string]$parentId) { ConvertTo-MockSnapshot $snapshot $row.id } }
+            return
+        }
         $row = Get-MockRow $VM
         if ($null -eq $row) { return }
         foreach ($snapshot in @($row.snapshots)) { if ($null -ne $snapshot) { ConvertTo-MockSnapshot $snapshot $VM.Id } }
@@ -270,17 +291,21 @@ function Checkpoint-VM {
     param([Parameter(ValueFromPipeline)]$VM, [string[]]$Name, [string]$SnapshotName, [switch]$Passthru)
     process {
         Write-MockCall 'Checkpoint-VM' $PSBoundParameters
-        $snapshot = [pscustomobject]@{ id = [guid]::NewGuid().ToString(); name = $SnapshotName; creationTime = [datetime]::UtcNow.ToString('o'); parentId = $null }
         $row = Get-MockRow $VM
+        # Like Hyper-V: the new checkpoint's parent is the VM's current checkpoint, and the new one becomes current.
+        $parentId = Get-MockParentSnapshotId $row
+        $snapshot = [pscustomobject]@{ id = [guid]::NewGuid().ToString(); name = $SnapshotName; creationTime = [datetime]::UtcNow.ToString('o'); parentId = $(if ($null -ne $parentId) { [string]$parentId } else { $null }) }
         $snapshots = @()
         if ($row -and $row.snapshots) { $snapshots = @($row.snapshots) }
         Update-MockVm $VM 'snapshots' (@($snapshots) + $snapshot)
+        Update-MockVm $VM 'parentSnapshotId' $snapshot.id
         if ($Passthru) { ConvertTo-MockSnapshot $snapshot $VM.Id }
     }
 }
 
+# The restored checkpoint becomes the VM's current checkpoint.
 function Restore-VMSnapshot { [CmdletBinding(SupportsShouldProcess)] param([Parameter(ValueFromPipeline)]$VMSnapshot, [string]$Name, [switch]$Passthru)
-    process { Write-MockCall 'Restore-VMSnapshot' $PSBoundParameters } }
+    process { Write-MockCall 'Restore-VMSnapshot' $PSBoundParameters; if ($VMSnapshot) { Update-MockVm ([pscustomobject]@{ Id = $VMSnapshot.VMId }) 'parentSnapshotId' ([string]$VMSnapshot.Id) } } }
 function Remove-VMSnapshot { [CmdletBinding(SupportsShouldProcess)] param([Parameter(ValueFromPipeline)]$VMSnapshot, [string]$Name, [switch]$IncludeAllChildSnapshots, [switch]$Passthru)
     process { Write-MockCall 'Remove-VMSnapshot' $PSBoundParameters } }
 function Rename-VMSnapshot { [CmdletBinding(SupportsShouldProcess)] param([Parameter(ValueFromPipeline)]$VMSnapshot, [string]$Name, [string]$NewName, [switch]$Passthru)

@@ -123,6 +123,10 @@ internal static class ImageBuildScripts
         .Cmd("$run = Invoke-ImageBuildNative", ("FilePath", PsValue.Raw("$bcdboot")), ("ArgumentList", PsValue.Raw("$arguments")))
         .Returns("@{ exitCode = [int]$run.exitCode; offline = $offline; arguments = @($arguments); output = (($run.stdout + \"`n\" + $run.stderr).Trim()) }");
 
+    /// <summary>
+    /// <c>bcdedit /store</c> on the image's EFI partition. bcdedit clears the store's TreatAsSystem flag when it closes it,
+    /// so the build marks the store again (<see cref="ImageBuildService.MarkSystemStore"/>) after every script built on this.
+    /// </summary>
     private static HyperVScript BcdEditor(char systemLetter) => Begin(native: true)
         .Line("$bcdedit = [System.IO.Path]::Combine($env:SystemRoot, 'System32', 'bcdedit.exe')")
         .Line("$store = " + Lit(systemLetter + ":\\EFI\\Microsoft\\Boot\\BCD"))
