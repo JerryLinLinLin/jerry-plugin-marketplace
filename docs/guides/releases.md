@@ -8,7 +8,7 @@ This repository supports the [Codex marketplace workflow](https://developers.ope
 
 | Runtime | Release | Download |
 | --- | --- | --- |
-| Hyper-V Control | [Windows x64](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/hyper-v-control-v0.2.0) | Self-contained MCP executable |
+| Hyper-V Control | [Windows x64](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/hyper-v-control-v0.2.1) | Self-contained MCP executable |
 | Rizin | [Windows x64](https://github.com/JerryLinLinLin/jerry-plugin-marketplace/releases/tag/rizin-v0.3.1) | Portable runtime; RetDec build SDK is a separate maintainer asset |
 
 Frida and Capstone dependencies are installed by their plugin setup workflows. They do not need a binary release in this repository.
