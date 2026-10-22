@@ -11,6 +11,7 @@ Understand unfamiliar software, investigate live behavior, make verifiable chang
 | [Rizin RE Toolkit](plugins/rizin-re-toolkit) | Understand executables and memory dumps through disassembly, multiple decompilers, signatures, and pattern matching. |
 | [Frida Use](plugins/frida-use) | Observe running programs, trace API calls, inspect runtime values, and test reversible behavior changes. |
 | [Capstone Binary Patching](plugins/capstone-binary-patching) | Compare instructions, create precise binary patches, verify the result, and roll changes back. |
+| [Windows Antivirus Vulnerability Knowledge](plugins/windows-antivirus-vulnerability-knowledge) | Study antivirus architecture, vulnerability mechanisms, and documented CVE cases. |
 | [Hyper-V Control](plugins/hyper-v-control) | Manage VMs and checkpoints, interact with guest desktops, transfer files, and debug applications or the Windows kernel. |
 
 Use them independently or together: understand a program, observe it running, verify a change, and repeat the experiment from a known VM state.
@@ -34,6 +35,7 @@ claude plugin marketplace add JerryLinLinLin/jerry-plugin-marketplace
 claude plugin install rizin-re-toolkit@jerry-plugin-marketplace
 claude plugin install frida-use@jerry-plugin-marketplace
 claude plugin install capstone-binary-patching@jerry-plugin-marketplace
+claude plugin install windows-antivirus-vulnerability-knowledge@jerry-plugin-marketplace
 claude plugin install hyper-v-control@jerry-plugin-marketplace
 ```
 

@@ -26,6 +26,12 @@
       "category": "Security"
     },
     {
+      "name": "windows-antivirus-vulnerability-knowledge",
+      "source": "./plugins/windows-antivirus-vulnerability-knowledge",
+      "description": "Windows antivirus architecture, vulnerability mechanisms, and source-linked CVE case studies for security research and review.",
+      "category": "Security"
+    },
+    {
       "name": "hyper-v-control",
       "source": "./plugins/hyper-v-control",
       "description": "Control Hyper-V VMs, graphical consoles, guest automation and user/kernel debugging through a native C# stdio MCP server.",
